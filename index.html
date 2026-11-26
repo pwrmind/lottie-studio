@@ -280,45 +280,97 @@
  * 1. ДЕМО-СЦЕНАРИЙ: большой мир, камера, шрифты
  * ========================================================================== */
 
-const DEFAULT_DSL = `-- Окно вывода камеры (вертикальный кадр 540x960)
-UPDATE composition SET width = 540, height = 960, fps = 60, duration = 9.0;
+const DEFAULT_DSL = `
+-- ============================================================================
+-- 🎬 LSL STUDIO — ПРЕЗЕНТАЦИЯ LOTTIE SCENARIO LANGUAGE
+-- Демонстрация возможностей: 2D-камера, SQL-выборки (WHERE LIKE / AND / OR),
+-- динамический морфинг размеров (width, height, radius) и HUD-оверлеи (fixed)
+-- ============================================================================
 
--- Начальная позиция камеры (смотрит на Сцену 1 в координате x = 350)
+UPDATE composition SET width = 540, height = 960, fps = 60, duration = 11.0;
+
+-- Камера начинает на Сцене 1 (x = 350)
 UPDATE camera SET x = 350, y = 480, zoom = 1.0 AT 0.0;
 
--- Наполнение большого виртуального мира (шириной > 2000px)
+-- 1. МИР И КАРТОЧКИ СЦЕН (3 экрана в едином пространстве)
 INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
-  ('world_bg', 'rect',    1100, 480, 2600, 1400, '#070a14', 0,  100),
-  ('zone1',    'rect',    350,  480, 460,  760,  '#131b2e', 32, 100),
-  ('zone2',    'rect',    1100, 480, 460,  760,  '#1e1633', 32, 100),
-  ('zone3',    'rect',    1850, 480, 460,  760,  '#0f292e', 32, 100),
-  ('actor',    'ellipse', 350,  540, 72,   72,   '#38bdf8', 0,  100),
-  ('target',   'rect',    1100, 520, 140,  140,  '#a855f7', 24, 100),
-  ('finish',   'ellipse', 1850, 520, 110,  110,  '#22c55e', 0,  100);
+  ('world_bg', 'rect', 1100, 480, 2800, 1600, '#090d16', 0,  100),
+  ('card_1',   'rect', 350,  480, 460,  760,  '#111827', 32, 100),
+  ('card_2',   'rect', 1100, 480, 460,  760,  '#17132b', 32, 100),
+  ('card_3',   'rect', 1850, 480, 460,  760,  '#0c2229', 32, 100);
 
--- Текстовые слои с указанием шрифтов (Google Fonts или системные)
+-- 2. ЭЛЕМЕНТЫ СЦЕНЫ 1: Заголовок и логотип LSL (трансформация круг -> плашка)
+INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
+  ('s1_badge', 'rect', 350, 450, 120, 120, '#38bdf8', 60, 100),
+  ('s1_bar',   'rect', 350, 620, 40,  10,  '#1e293b', 5,  100);
+
 INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
-  ('lbl1', 'text', 'СЦЕНА 1 · СТАРТ', 'Kablammo',       350,  220, 26, '#94a3b8', 100),
-  ('lbl2', 'text', 'СЦЕНА 2 · НАЕЗД', 'Playpen Sans', 1100, 220, 28, '#c084fc', 100),
-  ('lbl3', 'text', 'СЦЕНА 3 · КАТ',   'Comforter',      1850, 220, 24, '#4ade80', 100);
+  ('s1_tag',   'text', 'LOTTIE SCENARIO LANGUAGE', 'JetBrains Mono', 350, 210, 16, '#38bdf8', 100),
+  ('s1_logo',  'text', 'LSL',                      'Montserrat',     350, 465, 42, '#090d16', 100),
+  ('s1_desc',  'text', 'Анимация на языке SQL',    'Playpen Sans',   350, 565, 22, '#e2e8f0', 0);
 
--- 1. Герой начинает движение из Сцены 1 в Сцену 2, камера плавно ведёт его
-UPDATE layers SET x = 1100 WHERE id = 'actor' AT 0.8 WITH (duration = 2.4, ease = 'inOut');
-UPDATE camera SET x = 1100, y = 480, zoom = 1.0 AT 0.8 WITH (duration = 2.4, ease = 'inOut');
+-- 3. ЭЛЕМЕНТЫ СЦЕНЫ 2: Демонстрация массового WHERE (группа bar_1..bar_4)
+INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
+  ('bar_1', 'rect', 980,  540, 56, 60, '#334155', 14, 100),
+  ('bar_2', 'rect', 1060, 540, 56, 60, '#334155', 14, 100),
+  ('bar_3', 'rect', 1140, 540, 56, 60, '#334155', 14, 100),
+  ('bar_4', 'rect', 1220, 540, 56, 60, '#334155', 14, 100);
 
--- 2. Наезд (зум) камеры на объект в Сцене 2 и его вращение
-UPDATE camera SET x = 1100, y = 520, zoom = 1.65 AT 3.3 WITH (duration = 0.8, ease = 'out');
-UPDATE layers SET rotation = 180, scale = 120 WHERE id = 'target' AT 3.4 WITH (duration = 0.9, ease = 'inOut');
+INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
+  ('s2_tag',  'text', 'SQL SELECTORS · WHERE',     'JetBrains Mono', 1100, 210, 16, '#c084fc', 100),
+  ('s2_code', 'text', "WHERE id LIKE 'bar_%'",     'JetBrains Mono', 1100, 340, 18, '#e9d5ff', 100);
 
--- 3. Отъезд камеры обратно на общий план
-UPDATE camera SET x = 1100, y = 480, zoom = 0.85 AT 4.6 WITH (duration = 0.8, ease = 'inOut');
+-- 4. ЭЛЕМЕНТЫ СЦЕНЫ 3: Финал и экспорт в JSON / MP4
+INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
+  ('s3_core', 'rect',    1850, 470, 180, 180, '#22c55e', 90, 100),
+  ('s3_ring', 'ellipse', 1850, 470, 240, 240, '#22c55e', 0,  20);
 
--- 4. Мгновенный монтажный КАТ (duration = 0) в Сцену 3 + телепорт героя
-UPDATE layers SET x = 1850, y = 640, color = '#22c55e' WHERE id = 'actor' AT 5.8;
-UPDATE camera SET x = 1850, y = 480, zoom = 1.0 AT 5.8;
+INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
+  ('s3_tag',  'text', 'READY TO RENDER',           'JetBrains Mono', 1850, 210, 16, '#4ade80', 100),
+  ('s3_btn',  'text', 'Lottie JSON & MP4',         'Playpen Sans',   1850, 480, 24, '#052e16', 0),
+  ('s3_sub',  'text', 'Без After Effects · В 1 файл', 'Playpen Sans', 1850, 640, 18, '#94a3b8', 0);
 
--- 5. Финальный плавный наезд на Сцену 3
-UPDATE camera SET x = 1850, y = 520, zoom = 1.35 AT 6.2 WITH (duration = 1.5, ease = 'inOut');
+-- 5. ФИКСИРОВАННЫЙ HUD (не двигается за камерой благодаря fixed = true)
+INSERT INTO layers (id, type, fixed, x, y, width, height, color, radius, opacity) VALUES
+  ('hud_bg',   'rect', true, 270, 910, 460, 6,  '#1e293b', 3, 100),
+  ('hud_prog', 'rect', true, 270, 910, 10,  6,  '#38bdf8', 3, 100);
+
+INSERT INTO layers (id, type, fixed, text, font, x, y, size, color, opacity) VALUES
+  ('hud_title', 'text', true, '🎬 LSL STUDIO · LIVE DEMO', 'JetBrains Mono', 270, 56, 13, '#64748b', 100);
+
+-- ============================================================================
+-- ТАЙМЛАЙН АНИМАЦИИ
+-- ============================================================================
+
+-- Прогресс-бар HUD плавно растёт на протяжении всего ролика (0 -> 11 сек)
+UPDATE layers SET width = 460 WHERE id = 'hud_prog' AT 0.0 WITH (duration = 11.0, ease = 'linear');
+
+-- [0.4s] Сцена 1: Круглый бейдж раскрывается в широкую плашку, появляется слоган
+UPDATE layers SET width = 320, height = 96, radius = 24 WHERE id = 's1_badge' AT 0.4 WITH (duration = 0.7, ease = 'out');
+UPDATE layers SET width = 260, color = '#38bdf8'        WHERE id = 's1_bar'   AT 0.6 WITH (duration = 0.7, ease = 'out');
+UPDATE layers SET opacity = 100                         WHERE id = 's1_desc'  AT 0.7 WITH (duration = 0.5, ease = 'out');
+
+-- [2.5s] Переезд камеры на Сцену 2
+UPDATE camera SET x = 1100, y = 480, zoom = 1.0 AT 2.5 WITH (duration = 1.2, ease = 'inOut');
+
+-- [3.8s] Сцена 2: Массовое обновление всех столбиков через LIKE и фильтры
+UPDATE layers SET height = 220, y = 460, color = '#a855f7' WHERE id LIKE 'bar_%'            AT 3.8 WITH (duration = 0.6, ease = 'out');
+UPDATE layers SET height = 300, y = 420, color = '#38bdf8' WHERE id = 'bar_2' OR id = 'bar_4' AT 4.5 WITH (duration = 0.6, ease = 'inOut');
+UPDATE layers SET radius = 28                              WHERE id LIKE 'bar_%'            AT 5.2 WITH (duration = 0.4, ease = 'out');
+
+-- [6.0s] Мгновенный монтажный КАТ (duration = 0) на Сцену 3 + смена цвета HUD
+UPDATE camera SET x = 1850, y = 480, zoom = 0.92 AT 6.0;
+UPDATE layers SET color = '#22c55e'              WHERE id = 'hud_prog' AT 6.0;
+
+-- [6.3s] Сцена 3: Кнопка раскрывается из круга в капсулу, камера делает наезд
+UPDATE camera SET x = 1850, y = 490, zoom = 1.12            AT 6.3 WITH (duration = 1.4, ease = 'inOut');
+UPDATE layers SET width = 340, height = 84, radius = 42     WHERE id = 's3_core' AT 6.3 WITH (duration = 0.7, ease = 'out');
+UPDATE layers SET width = 390, height = 130, opacity = 35   WHERE id = 's3_ring' AT 6.4 WITH (duration = 0.8, ease = 'out');
+UPDATE layers SET opacity = 100                             WHERE id IN ('s3_btn', 's3_sub') AT 6.7 WITH (duration = 0.5, ease = 'out');
+
+-- [8.8s] Финальный лёгкий отъезд камеры на общий план карточки 3
+UPDATE camera SET x = 1850, y = 480, zoom = 1.0 AT 8.8 WITH (duration = 1.2, ease = 'inOut');
+
 `;
 
 /* ============================================================================
@@ -531,28 +583,73 @@ function tryParseCameraUpdate(stmt, out) {
   return true;
 }
 
+/** Компилирует строку условия WHERE в функцию (layer) => boolean. */
+function compileWherePredicate(whereStr) {
+  const orParts = whereStr.split(/\s+OR\s+/i);
+  const orFuncs = orParts.map((orPart) => {
+    const andParts = orPart.split(/\s+AND\s+/i);
+    const andFuncs = andParts.map((cond) => {
+      const c = cond.trim();
+
+      // 1. col IN ('a', 'b')
+      let m = c.match(/^(\w+)\s+IN\s*\((.+)\)$/i);
+      if (m) {
+        const [, col, listStr] = m;
+        const list = splitTopLevel(listStr).map(parseValue);
+        return (layer) => list.includes(layer[col]);
+      }
+
+      // 2. col LIKE 'prefix%'
+      m = c.match(/^(\w+)\s+LIKE\s+(.+)$/i);
+      if (m) {
+        const [, col, rawPattern] = m;
+        const pat = String(parseValue(rawPattern))
+          .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          .replace(/%/g, '.*')
+          .replace(/_/g, '.');
+        const re = new RegExp('^' + pat + '$', 'i');
+        return (layer) => re.test(String(layer[col] ?? ''));
+      }
+
+      // 3. col (= | != | <> | >= | <= | > | <) value
+      m = c.match(/^(\w+)\s*(!=|<>|>=|<=|=|>|<)\s*(.+)$/);
+      if (m) {
+        const [, col, op, rawVal] = m;
+        const val = parseValue(rawVal);
+        return (layer) => {
+          const cur = layer[col];
+          switch (op) {
+            case '=':  return cur === val;
+            case '!=':
+            case '<>': return cur !== val;
+            case '>':  return cur > val;
+            case '<':  return cur < val;
+            case '>=': return cur >= val;
+            case '<=': return cur <= val;
+            default:   return false;
+          }
+        };
+      }
+
+      throw new Error('Неподдерживаемое условие WHERE: ' + c);
+    });
+    return (layer) => andFuncs.every((fn) => fn(layer));
+  });
+  return (layer) => orFuncs.some((fn) => fn(layer));
+}
+
 function tryParseLayerUpdate(stmt, out) {
   const match = stmt.match(/^UPDATE\s+layers\s+SET\s+(.+)$/is);
   if (!match) return false;
 
   const tail = splitUpdateTail(match[1]);
   const update = makeUpdate(tail.set, tail.at, tail.with);
-  update.targetIds = null;
+  update.matchFn = tail.where ? compileWherePredicate(tail.where) : () => true;
 
-  if (tail.where) {
-    const inMatch = tail.where.match(/^id\s+IN\s*\((.+)\)$/i);
-    const eqMatch = tail.where.match(/^id\s*=\s*(.+)$/i);
-    if (inMatch) {
-      update.targetIds = splitTopLevel(inMatch[1]).map(parseValue);
-    } else if (eqMatch) {
-      update.targetIds = [parseValue(eqMatch[1])];
-    } else {
-      throw new Error('Неподдерживаемое условие WHERE: ' + tail.where);
-    }
-  }
   out.push(update);
   return true;
 }
+
 
 function parseDSL(text) {
   const cleaned = text.split('\n').map(stripLineComment).join('\n');
@@ -653,7 +750,7 @@ function collectLayerEvents(layer, updates) {
   let curH = layer.height;
 
   for (const u of updates) {
-    if (u.targetIds && !u.targetIds.includes(layer.id)) continue;
+    if (u.matchFn && !u.matchFn(layer)) continue;
     const { set } = u;
 
     if (set.x !== undefined || set.y !== undefined) {
