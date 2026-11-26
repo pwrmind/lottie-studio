@@ -1172,12 +1172,12 @@ function drawCurrentSvgToCanvas(ctx, width, height, fontStyleText) {
   });
 }
 
-/** Быстрый покадровый рендер SVG-сцены в MP4 (H.264) через WebCodecs. */
+/** Быстрый покадровый рендер SVG-сцены в WebM (VP9) через Mediabunny. */
 async function exportVideo() {
   if (!state.lottieData || !state.anim || state.isExporting) return;
 
-  if (typeof VideoEncoder === 'undefined' || typeof Mp4Muxer === 'undefined') {
-    showError('Для быстрого MP4-экспорта нужен современный браузер (Chrome/Edge) и библиотека mp4-muxer.');
+  if (typeof Mediabunny === 'undefined') {
+    showError('Не найдена библиотека Mediabunny — проверьте тег <script>.');
     return;
   }
 
@@ -1191,7 +1191,6 @@ async function exportVideo() {
   const encW = w % 2 === 0 ? w : w + 1;
   const encH = h % 2 === 0 ? h : h + 1;
 
-  // Собираем CSS шрифтов один раз строкой, а не через клонирование DOM-узлов на каждом кадре
   const fontStyleText = fontCssCache.size > 0 ? [...fontCssCache.values()].join('\n') : '';
 
   const offCanvas = document.createElement('canvas');
@@ -1199,50 +1198,36 @@ async function exportVideo() {
   offCanvas.height = encH;
   const offCtx = offCanvas.getContext('2d', { alpha: false });
 
-  const muxer = new Mp4Muxer.Muxer({
-    target: new Mp4Muxer.ArrayBufferTarget(),
-    video: {
-      codec: 'avc',
-      width: encW,
-      height: encH,
-    },
-    fastStart: 'in-memory',
-  });
+  const { Output, WebMOutputFormat, BufferTarget, CanvasSource, Quality, canEncodeVideo } = Mediabunny;
 
-  const encoder = new VideoEncoder({
-    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-    error: (e) => console.error('VideoEncoder error:', e),
-  });
-
-  encoder.configure({
-    codec: 'avc1.42001f',
-    width: encW,
-    height: encH,
-    bitrate: 8_000_000,
-    framerate: fps,
-  });
-
-  const frameDurationUs = Math.round(1_000_000 / fps);
+  let output = null;
 
   try {
-    for (let f = 0; f < totalFrames; f++) {
-      // Переключаем основной проверенный SVG-плеер на кадр f
-      state.anim.goToAndStop(f, true);
+    if (!(await canEncodeVideo('vp9', { width: encW, height: encH }))) {
+      throw new Error('Кодек VP9 недоступен в этом браузере.');
+    }
 
-      // Отрисовываем кадр на canvas
+    output = new Output({
+      format: new WebMOutputFormat(),
+      target: new BufferTarget(),
+    });
+
+    const videoSource = new CanvasSource(offCanvas, {
+      codec: 'vp9',
+      quality: new Quality({ bitrate: 8_000_000 }),
+      keyFrameInterval: 1, // ключевой кадр раз в секунду — как раньше
+    });
+    output.addVideoTrack(videoSource, { frameRate: fps });
+    await output.start();
+
+    const frameDur = 1 / fps;
+
+    for (let f = 0; f < totalFrames; f++) {
+      state.anim.goToAndStop(f, true);
       await drawCurrentSvgToCanvas(offCtx, encW, encH, fontStyleText);
 
-      const videoFrame = new VideoFrame(offCanvas, {
-        timestamp: f * frameDurationUs,
-        duration: frameDurationUs,
-      });
-
-      encoder.encode(videoFrame, { keyFrame: f % fps === 0 });
-      videoFrame.close();
-
-      if (encoder.encodeQueueSize > 8) {
-        await encoder.flush();
-      }
+      // add() возвращает промис: ожидание заменяет ваш ручной бэкпрешур
+      await videoSource.add(f * frameDur, frameDur);
 
       if (f % 10 === 0 || f === totalFrames - 1) {
         els.scrubber.value = f;
@@ -1250,15 +1235,14 @@ async function exportVideo() {
       }
     }
 
-    await encoder.flush();
-    muxer.finalize();
+    videoSource.close();
+    await output.finalize();
 
-    const { buffer } = muxer.target;
-    downloadBlob(new Blob([buffer], { type: 'video/mp4' }), 'lottie_export.mp4');
+    downloadBlob(new Blob([output.target.buffer], { type: 'video/webm' }), 'lottie_export.webm');
   } catch (err) {
+    if (output) { try { await output.cancel(); } catch { /* уже закрыт */ } }
     showError('Ошибка экспорта видео: ' + err.message);
   } finally {
-    encoder.close();
     state.isExporting = false;
     els.recBadge.classList.remove('on');
     els.btnExport.disabled = false;
