@@ -745,11 +745,12 @@ function parseDSL(text) {
 
 const bezier = (ix, iy, ox, oy) => ({ i: { x: [ix], y: [iy] }, o: { x: [ox], y: [oy] } });
 
+// Порядок аргументов bezier(x2, y2, x1, y1) для CSS cubic-bezier(x1, y1, x2, y2):
 const EASING = {
-  linear: bezier(0, 1, 0, 0),
-  in:     bezier(0.42, 1, 1, 1),
-  out:    bezier(0, 0, 0.58, 1),
-  inOut:  bezier(0.42, 0, 0.58, 1),
+  linear: bezier(1, 1, 0, 0),          // cubic-bezier(0, 0, 1, 1)
+  in:     bezier(1, 1, 0.42, 0),       // cubic-bezier(0.42, 0, 1, 1)
+  out:    bezier(0.58, 1, 0, 0),       // cubic-bezier(0, 0, 0.58, 1)
+  inOut:  bezier(0.58, 1, 0.42, 0),    // cubic-bezier(0.42, 0, 0.58, 1)
 };
 const LINEAR = EASING.linear;
 
