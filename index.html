@@ -939,74 +939,118 @@ e.preventDefault();
 compileAndRun();
 }
 });
+
 /* ============================================================================
-• 
-	5. ПОКАДРОВЫЙ ЭКСПОРТ ВИДЕО ИЗ LOTTIE
-• ============================================================================ */
+ * 5. ЭКСПОРТ ВИДЕО НАПРЯМУЮ ИЗ SVG-РЕНДЕРА (100% СОВПАДЕНИЕ С ПРЕВЬЮ)
+ * ============================================================================ */
 document.getElementById('btn-export-video').addEventListener('click', async function() {
-if (!currentLottieData || isExporting) return;
-const mimeCandidates = Array.of(
-'video/webm;codecs=vp9',
-'video/webm;codecs=vp8',
-'video/webm',
-'video/mp4'
-);
-const mime = mimeCandidates.find(function(m) {
-return window.MediaRecorder && MediaRecorder.isTypeSupported(m);
+  if (!currentLottieData || !anim || isExporting) return;
+
+  const mimeCandidates = Array.of(
+    'video/mp4;codecs="avc1.42E01E"',
+    'video/mp4',
+    'video/webm;codecs=vp8',
+    'video/webm'
+  );
+  const mime = mimeCandidates.find(function(m) {
+    return window.MediaRecorder && MediaRecorder.isTypeSupported(m);
+  });
+  if (!mime) {
+    alert('Ваш браузер не поддерживает MediaRecorder для записи видео.');
+    return;
+  }
+
+  // Убеждаемся, что вкладка превью активна, чтобы SVG рендерился корректно
+  tabPreview.click();
+
+  isExporting = true;
+  anim.pause();
+  isPlaying = false;
+  btnPlay.textContent = '▶ Старт';
+  recBadge.classList.add('on');
+  document.getElementById('btn-export-video').disabled = true;
+
+  const w = currentLottieData.w;
+  const h = currentLottieData.h;
+  const fps = currentLottieData.fr;
+  const totalFrames = currentLottieData.op;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const serializer = new XMLSerializer();
+
+  // Вспомогательная функция: переносит текущий кадр SVG на Canvas
+  function drawSvgFrameToCanvas() {
+    return new Promise(function(resolve) {
+      const svgEl = lottieBox.querySelector('svg');
+      if (!svgEl) { resolve(); return; }
+
+      const clone = svgEl.cloneNode(true);
+      clone.setAttribute('xmlns', 'http://w3.org');
+      clone.setAttribute('width', w);
+      clone.setAttribute('height', h);
+
+      const svgStr = serializer.serializeToString(clone);
+      const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
+      const img = new Image();
+      img.onload = function() {
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve();
+      };
+      img.onerror = function() { resolve(); };
+      img.src = url;
+    });
+  }
+
+  // Рисуем 0-й кадр до старта записи
+  anim.goToAndStop(0, true);
+  await drawSvgFrameToCanvas();
+
+  const stream = canvas.captureStream(fps);
+  const recorder = new MediaRecorder(stream, {
+    mimeType: mime,
+    videoBitsPerSecond: 8000000
+  });
+
+  const chunks = [];
+  recorder.ondataavailable = function(e) {
+    if (e.data && e.data.size > 0) chunks.push(e.data);
+  };
+
+  const donePromise = new Promise(function(resolve) {
+    recorder.onstop = resolve;
+  });
+
+  recorder.start(100);
+
+  const frameDelay = 1000 / fps;
+  for (let f = 0; f < totalFrames; f++) {
+    anim.goToAndStop(f, true);
+    await drawSvgFrameToCanvas();
+    scrubber.value = f;
+    timecode.textContent = (f / fps).toFixed(2) + ' / ' + (totalFrames / fps).toFixed(2) + 's';
+    await new Promise(function(r) { setTimeout(r, frameDelay); });
+  }
+
+  await new Promise(function(r) { setTimeout(r, 150); });
+  recorder.stop();
+  await donePromise;
+
+  const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+  const blob = new Blob(chunks, { type: mime });
+  downloadBlob(blob, 'lottie_export.' + ext);
+
+  isExporting = false;
+  recBadge.classList.remove('on');
+  document.getElementById('btn-export-video').disabled = false;
+  anim.play();
+  isPlaying = true;
+  btnPlay.textContent = '⏸ Пауза';
 });
-if (!mime) {
-alert('Ваш браузер не поддерживает MediaRecorder для записи видео.');
-return;
-}
-isExporting = true;
-if (anim) anim.pause();
-isPlaying = false;
-btnPlay.textContent = '▶ Старт';
-recBadge.classList.add('on');
-document.getElementById('btn-export-video').disabled = true;
-const w = currentLottieData.w;
-const h = currentLottieData.h;
-const fps = currentLottieData.fr;
-const totalFrames = currentLottieData.op;
-const offDiv = document.createElement('div');
-offDiv.style.cssText = 'position:fixed;left:-9999px;top:0;width:' + w + 'px;height:' + h + 'px;';
-document.body.appendChild(offDiv);
-const offAnim = lottie.loadAnimation({
-container: offDiv,
-renderer: 'canvas',
-loop: false,
-autoplay: false,
-animationData: JSON.parse(JSON.stringify(currentLottieData)),
-rendererSettings: { clearCanvas: true, preserveDrawingBuffer: true }
-});
-await new Promise(function(r) { offAnim.addEventListener('DOMLoaded', r, { once: true }); });
-const canvas = offDiv.querySelector('canvas');
-const stream = canvas.captureStream(0);
-const track = stream.getVideoTracks().at(0);
-const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8000000 });
-const chunks = [];
-recorder.ondataavailable = function(e) { if (e.data.size > 0) chunks.push(e.data); };
-const donePromise = new Promise(function(resolve) { recorder.onstop = resolve; });
-recorder.start();
-const frameDelay = 1000 / fps;
-for (let f = 0; f < totalFrames; f++) {
-offAnim.goToAndStop(f, true);
-if (track && track.requestFrame) track.requestFrame();
-scrubber.value = f;
-timecode.textContent = (f / fps).toFixed(2) + ' / ' + (totalFrames / fps).toFixed(2) + 's';
-await new Promise(function(r) { setTimeout(r, frameDelay); });
-}
-recorder.stop();
-await donePromise;
-offAnim.destroy();
-offDiv.remove();
-const ext = mime.includes('mp4') ? 'mp4' : 'webm';
-downloadBlob(new Blob(chunks, { type: mime }), 'lottie_export.' + ext);
-isExporting = false;
-recBadge.classList.remove('on');
-document.getElementById('btn-export-video').disabled = false;
-if (anim) { anim.play(); isPlaying = true; btnPlay.textContent = '⏸ Пауза'; }
-});
+
 compileAndRun();
 </script>
 </body>
