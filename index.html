@@ -282,12 +282,12 @@
 
 const DEFAULT_DSL = `
 -- ============================================================================
--- 🎬 LSL STUDIO — ПРЕЗЕНТАЦИЯ LOTTIE SCENARIO LANGUAGE
--- Демонстрация возможностей: 2D-камера, SQL-выборки (WHERE LIKE / AND / OR),
--- динамический морфинг размеров (width, height, radius) и HUD-оверлеи (fixed)
+-- ============================================================================
+-- 🎬 LSL STUDIO — ПРЕЗЕНТАЦИЯ LOTTIE SCENARIO LANGUAGE (ДИНАМИЧНАЯ ВЕРСИЯ)
+-- Длительность: 8.5 сек без статичных пауз + исправлена композиция Сцены 2
 -- ============================================================================
 
-UPDATE composition SET width = 540, height = 960, fps = 60, duration = 11.0;
+UPDATE composition SET width = 540, height = 960, fps = 60, duration = 8.5;
 
 -- Камера начинает на Сцене 1 (x = 350)
 UPDATE camera SET x = 350, y = 480, zoom = 1.0 AT 0.0;
@@ -299,7 +299,7 @@ INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUE
   ('card_2',   'rect', 1100, 480, 460,  760,  '#17132b', 32, 100),
   ('card_3',   'rect', 1850, 480, 460,  760,  '#0c2229', 32, 100);
 
--- 2. ЭЛЕМЕНТЫ СЦЕНЫ 1: Заголовок и логотип LSL (трансформация круг -> плашка)
+-- 2. ЭЛЕМЕНТЫ СЦЕНЫ 1: Логотип и слоган
 INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
   ('s1_badge', 'rect', 350, 450, 120, 120, '#38bdf8', 60, 100),
   ('s1_bar',   'rect', 350, 620, 40,  10,  '#1e293b', 5,  100);
@@ -309,18 +309,18 @@ INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
   ('s1_logo',  'text', 'LSL',                      'Montserrat',     350, 465, 42, '#090d16', 100),
   ('s1_desc',  'text', 'Анимация на языке SQL',    'Playpen Sans',   350, 565, 22, '#e2e8f0', 0);
 
--- 3. ЭЛЕМЕНТЫ СЦЕНЫ 2: Демонстрация массового WHERE (группа bar_1..bar_4)
+-- 3. ЭЛЕМЕНТЫ СЦЕНЫ 2: Столбики и SQL-селектор (текст поднят на y = 285)
 INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
-  ('bar_1', 'rect', 980,  540, 56, 60, '#334155', 14, 100),
-  ('bar_2', 'rect', 1060, 540, 56, 60, '#334155', 14, 100),
-  ('bar_3', 'rect', 1140, 540, 56, 60, '#334155', 14, 100),
-  ('bar_4', 'rect', 1220, 540, 56, 60, '#334155', 14, 100);
+  ('bar_1', 'rect', 980,  580, 56, 60, '#334155', 14, 100),
+  ('bar_2', 'rect', 1060, 580, 56, 60, '#334155', 14, 100),
+  ('bar_3', 'rect', 1140, 580, 56, 60, '#334155', 14, 100),
+  ('bar_4', 'rect', 1220, 580, 56, 60, '#334155', 14, 100);
 
 INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
   ('s2_tag',  'text', 'SQL SELECTORS · WHERE',     'JetBrains Mono', 1100, 210, 16, '#c084fc', 100),
-  ('s2_code', 'text', "WHERE id LIKE 'bar_%'",     'JetBrains Mono', 1100, 340, 18, '#e9d5ff', 100);
+  ('s2_code', 'text', "WHERE id LIKE 'bar_%'",     'JetBrains Mono', 1100, 285, 18, '#e9d5ff', 100);
 
--- 4. ЭЛЕМЕНТЫ СЦЕНЫ 3: Финал и экспорт в JSON / MP4
+-- 4. ЭЛЕМЕНТЫ СЦЕНЫ 3: Финальный экспорт и пульсирующий ореол
 INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
   ('s3_core', 'rect',    1850, 470, 180, 180, '#22c55e', 90, 100),
   ('s3_ring', 'ellipse', 1850, 470, 240, 240, '#22c55e', 0,  20);
@@ -330,7 +330,7 @@ INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
   ('s3_btn',  'text', 'Lottie JSON & MP4',         'Playpen Sans',   1850, 480, 24, '#052e16', 0),
   ('s3_sub',  'text', 'Без After Effects · В 1 файл', 'Playpen Sans', 1850, 640, 18, '#94a3b8', 0);
 
--- 5. ФИКСИРОВАННЫЙ HUD (не двигается за камерой благодаря fixed = true)
+-- 5. ФИКСИРОВАННЫЙ HUD (fixed = true)
 INSERT INTO layers (id, type, fixed, x, y, width, height, color, radius, opacity) VALUES
   ('hud_bg',   'rect', true, 270, 910, 460, 6,  '#1e293b', 3, 100),
   ('hud_prog', 'rect', true, 270, 910, 10,  6,  '#38bdf8', 3, 100);
@@ -339,37 +339,39 @@ INSERT INTO layers (id, type, fixed, text, font, x, y, size, color, opacity) VAL
   ('hud_title', 'text', true, '🎬 LSL STUDIO · LIVE DEMO', 'JetBrains Mono', 270, 56, 13, '#64748b', 100);
 
 -- ============================================================================
--- ТАЙМЛАЙН АНИМАЦИИ
+-- ТАЙМЛАЙН АНИМАЦИИ (ПЛОТНЫЙ МОНТАЖ БЕЗ ПАУЗ)
 -- ============================================================================
 
--- Прогресс-бар HUD плавно растёт на протяжении всего ролика (0 -> 11 сек)
-UPDATE layers SET width = 460 WHERE id = 'hud_prog' AT 0.0 WITH (duration = 11.0, ease = 'linear');
+-- Прогресс-бар HUD заполняется ровно за 8.5 секунд
+UPDATE layers SET width = 460 WHERE id = 'hud_prog' AT 0.0 WITH (duration = 8.5, ease = 'linear');
 
--- [0.4s] Сцена 1: Круглый бейдж раскрывается в широкую плашку, появляется слоган
-UPDATE layers SET width = 320, height = 96, radius = 24 WHERE id = 's1_badge' AT 0.4 WITH (duration = 0.7, ease = 'out');
-UPDATE layers SET width = 260, color = '#38bdf8'        WHERE id = 's1_bar'   AT 0.6 WITH (duration = 0.7, ease = 'out');
-UPDATE layers SET opacity = 100                         WHERE id = 's1_desc'  AT 0.7 WITH (duration = 0.5, ease = 'out');
+-- [0.2s — 1.4s] Сцена 1: Раскрытие плашки, появление слогана и лёгкий наезд камеры
+UPDATE layers SET width = 320, height = 96, radius = 24 WHERE id = 's1_badge' AT 0.2 WITH (duration = 0.65, ease = [0.22, 1, 0.36, 1]);
+UPDATE layers SET width = 260, color = '#38bdf8'        WHERE id = 's1_bar'   AT 0.35 WITH (duration = 0.75, ease = 'out');
+UPDATE layers SET opacity = 100                         WHERE id = 's1_desc'  AT 0.5 WITH (duration = 0.45, ease = 'out');
+UPDATE camera SET zoom = 1.06                           AT 0.4 WITH (duration = 1.2, ease = 'inOut');
 
--- [2.5s] Переезд камеры на Сцену 2
-UPDATE camera SET x = 1100, y = 480, zoom = 1.0 AT 2.5 WITH (duration = 1.2, ease = 'inOut');
+-- [1.6s — 2.7s] Плавный переезд камеры на Сцену 2 сразу после чтения слогана
+UPDATE camera SET x = 1100, y = 480, zoom = 1.0 AT 1.6 WITH (duration = 1.1, ease = 'inOut');
 
--- [3.8s] Сцена 2: Массовое обновление всех столбиков через LIKE и фильтры
-UPDATE layers SET height = 220, y = 460, color = '#a855f7' WHERE id LIKE 'bar_%'            AT 3.8 WITH (duration = 0.6, ease = 'out');
-UPDATE layers SET height = 300, y = 420, color = '#38bdf8' WHERE id = 'bar_2' OR id = 'bar_4' AT 4.5 WITH (duration = 0.6, ease = 'inOut');
-UPDATE layers SET radius = 28                              WHERE id LIKE 'bar_%'            AT 5.2 WITH (duration = 0.4, ease = 'out');
+-- [2.6s — 4.7s] Сцена 2: Каскадный рост столбиков через SQL-выборки (с перекрытием фаз)
+UPDATE layers SET height = 210, y = 505, color = '#a855f7' WHERE id LIKE 'bar_%'            AT 2.6 WITH (duration = 0.55, ease = [0.22, 1, 0.36, 1]);
+UPDATE layers SET height = 290, y = 465, color = '#38bdf8' WHERE id = 'bar_2' OR id = 'bar_4' AT 3.2 WITH (duration = 0.55, ease = 'inOut');
+UPDATE layers SET radius = 28                              WHERE id LIKE 'bar_%'            AT 3.8 WITH (duration = 0.4, ease = 'out');
+UPDATE camera SET zoom = 1.06                              AT 3.3 WITH (duration = 1.3, ease = 'inOut');
 
--- [6.0s] Мгновенный монтажный КАТ (duration = 0) на Сцену 3 + смена цвета HUD
-UPDATE camera SET x = 1850, y = 480, zoom = 0.92 AT 6.0;
-UPDATE layers SET color = '#22c55e'              WHERE id = 'hud_prog' AT 6.0;
+-- [4.6s] Мгновенный монтажный КАТ на Сцену 3 + переключение цвета прогресс-бара
+UPDATE camera SET x = 1850, y = 480, zoom = 0.92 AT 4.6;
+UPDATE layers SET color = '#22c55e'              WHERE id = 'hud_prog' AT 4.6;
 
--- [6.3s] Сцена 3: Кнопка раскрывается из круга в капсулу, камера делает наезд
-UPDATE camera SET x = 1850, y = 490, zoom = 1.12            AT 6.3 WITH (duration = 1.4, ease = 'inOut');
-UPDATE layers SET width = 340, height = 84, radius = 42     WHERE id = 's3_core' AT 6.3 WITH (duration = 0.7, ease = 'out');
-UPDATE layers SET width = 390, height = 130, opacity = 35   WHERE id = 's3_ring' AT 6.4 WITH (duration = 0.8, ease = 'out');
-UPDATE layers SET opacity = 100                             WHERE id IN ('s3_btn', 's3_sub') AT 6.7 WITH (duration = 0.5, ease = 'out');
+-- [4.7s — 7.2s] Сцена 3: Раскрытие кнопки, пульсация ореола (yoyo) и наезд камеры
+UPDATE camera SET x = 1850, y = 490, zoom = 1.12          AT 4.7 WITH (duration = 1.4, ease = 'inOut');
+UPDATE layers SET width = 340, height = 84, radius = 42   WHERE id = 's3_core' AT 4.7 WITH (duration = 0.65, ease = [0.22, 1, 0.36, 1]);
+UPDATE layers SET opacity = 100                           WHERE id IN ('s3_btn', 's3_sub') AT 5.0 WITH (duration = 0.45, ease = 'out');
+UPDATE layers SET width = 385, height = 125, opacity = 40 WHERE id = 's3_ring' AT 4.8 WITH (duration = 0.85, ease = 'inOut', repeat = 3, yoyo = true);
 
--- [8.8s] Финальный лёгкий отъезд камеры на общий план карточки 3
-UPDATE camera SET x = 1850, y = 480, zoom = 1.0 AT 8.8 WITH (duration = 1.2, ease = 'inOut');
+-- [6.8s — 8.2s] Финальный мягкий отъезд камеры на общий план (и 0.3s фиксация финала)
+UPDATE camera SET x = 1850, y = 480, zoom = 1.0 AT 6.8 WITH (duration = 1.4, ease = 'inOut');
 
 `;
 
@@ -391,10 +393,10 @@ function splitTopLevel(str, sep = ',') {
     } else if (ch === "'" || ch === '"') {
       quote = ch;
       current += ch;
-    } else if (ch === '(') {
+    } else if (ch === '(' || ch === '[') {
       depth++;
       current += ch;
-    } else if (ch === ')') {
+    } else if (ch === ')' || ch === ']') {
       depth--;
       current += ch;
     } else if (ch === sep && depth === 0) {
@@ -414,11 +416,15 @@ function stripParens(str) {
   return t.startsWith('(') && t.endsWith(')') ? t.slice(1, -1) : t;
 }
 
-/** '123' -> "123", "'текст'" -> текст, "true" -> true. */
+/** '123' -> "123", "'текст'" -> текст, "true" -> true и массивы вида "[0.25, 0.1, 0.25, 1.0]". */
 function parseValue(raw) {
   const s = raw.trim();
   if ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith('"') && s.endsWith('"'))) {
     return s.slice(1, -1);
+  }
+  if (s.startsWith('[') && s.endsWith(']')) {
+    const inner = s.slice(1, -1).trim();
+    return inner ? splitTopLevel(inner).map(parseValue) : [];
   }
   if (s === 'true') return true;
   if (s === 'false') return false;
@@ -528,12 +534,15 @@ function splitUpdateTail(rest) {
   return tail;
 }
 
-/** Приводит SET/AT/WITH к единому объекту события анимации. */
+/** 3. Приводит SET/AT/WITH к единому объекту события анимации. */
 function makeUpdate(setPart, atTime, withObj) {
+  const delay = Number(withObj.delay ?? 0);
   return {
-    t: atTime || 0,
+    t: (atTime || 0) + delay,
     dur: Number(withObj.duration ?? withObj.dur ?? 0),
-    ease: String(withObj.ease ?? 'inOut'),
+    ease: withObj.ease ?? 'inOut',
+    repeat: Math.max(0, Math.floor(Number(withObj.repeat ?? 0))),
+    yoyo: Boolean(withObj.yoyo ?? false),
     set: parseAssignments(setPart),
   };
 }
@@ -681,9 +690,9 @@ const bezier = (ix, iy, ox, oy) => ({ i: { x: [ix], y: [iy] }, o: { x: [ox], y: 
 
 const EASING = {
   linear: bezier(0, 1, 0, 0),
-  in:     bezier(0, 1, 0.42, 0),
-  out:    bezier(0.58, 1, 0, 0),
-  inOut:  bezier(0.42, 1, 0.58, 0),
+  in:     bezier(0.42, 1, 1, 1),
+  out:    bezier(0, 0, 0.58, 1),
+  inOut:  bezier(0.42, 0, 0.58, 1),
 };
 const LINEAR = EASING.linear;
 
@@ -700,24 +709,60 @@ function hexToLottieColor(hex) {
   ].map((v) => +v.toFixed(4));
 }
 
-/** Собирает Lottie-трек ключевых кадров из событий { t, dur, ease, val }. */
+function resolveEase(easeSpec) {
+  if (Array.isArray(easeSpec) && easeSpec.length === 4) {
+    const [x1, y1, x2, y2] = easeSpec.map(Number);
+    // В Lottie: o = outgoing handle (x1, y1), i = incoming handle (x2, y2)
+    return bezier(x2, y2, x1, y1);
+  }
+  return EASING[String(easeSpec)] || EASING.inOut;
+}
+
+/** Собирает Lottie-трек ключевых кадров с поддержкой repeat, yoyo и cubic-bezier. */
 function buildKeyframes(events, initialVal, fps, isArray) {
   const make = (val) => (isArray ? val.slice() : [val]);
   const sorted = [...events].sort((a, b) => a.t - b.t);
   if (!sorted.length) return { a: 0, k: make(initialVal) };
+
+  // Разворачиваем repeat / yoyo в последовательность атомарных переходов
+  const expanded = [];
+  let trackedVal = initialVal;
+
+  for (const ev of sorted) {
+    const fromVal = trackedVal;
+    const toVal = ev.val;
+    const cycles = (ev.repeat || 0) + 1;
+
+    for (let c = 0; c < cycles; c++) {
+      const startT = ev.t + c * ev.dur;
+      if (ev.yoyo) {
+        const isForward = c % 2 === 0;
+        const target = isForward ? toVal : fromVal;
+        expanded.push({ t: startT, dur: ev.dur, ease: ev.ease, val: target });
+        trackedVal = target;
+      } else {
+        // При repeat без yoyo на каждом новом цикле сбрасываемся в fromVal
+        if (c > 0) {
+          expanded.push({ t: startT, dur: 0, ease: 'linear', val: fromVal });
+        }
+        expanded.push({ t: startT, dur: ev.dur, ease: ev.ease, val: toVal });
+        trackedVal = toVal;
+      }
+    }
+  }
 
   const kf = [];
   const last = () => kf[kf.length - 1];
   const push = (t, val, ease) => kf.push({ t, s: make(val), i: ease.i, o: ease.o });
   let curVal = initialVal;
 
-  for (const ev of sorted) {
+  for (const ev of expanded) {
     const startFrame = Math.round(ev.t * fps);
-    const endFrame = startFrame + Math.round(ev.dur * fps);
-    const ease = EASING[ev.ease] || EASING.inOut;
+    const durFrames = Math.round(ev.dur * fps);
+    const endFrame = startFrame + durFrames;
+    const ease = resolveEase(ev.ease);
 
-    if (Math.round(ev.dur * fps) <= 0) {
-      // Мгновенный скачок: держим старое значение до кадра перед стартом
+    if (durFrames <= 0) {
       if (startFrame > 0) {
         const prev = startFrame - 1;
         if (!last() || last().t < prev) push(prev, curVal, LINEAR);
@@ -742,12 +787,22 @@ function buildKeyframes(events, initialVal, fps, isArray) {
 }
 
 /** Разбирает UPDATE-события одного слоя на анимационные каналы. */
+/** Разбирает UPDATE-события одного слоя на анимационные каналы. */
 function collectLayerEvents(layer, updates) {
   const channels = { pos: [], scale: [], rot: [], op: [], color: [], size: [], radius: [] };
   let curX = layer.x;
   let curY = layer.y;
   let curW = layer.width;
   let curH = layer.height;
+
+  const ev = (u, val) => ({
+    t: u.t,
+    dur: u.dur,
+    ease: u.ease,
+    repeat: u.repeat,
+    yoyo: u.yoyo,
+    val,
+  });
 
   for (const u of updates) {
     if (u.matchFn && !u.matchFn(layer)) continue;
@@ -756,32 +811,33 @@ function collectLayerEvents(layer, updates) {
     if (set.x !== undefined || set.y !== undefined) {
       curX = set.x !== undefined ? set.x : curX;
       curY = set.y !== undefined ? set.y : curY;
-      channels.pos.push({ t: u.t, dur: u.dur, ease: u.ease, val: [curX, curY, 0] });
+      channels.pos.push(ev(u, [curX, curY, 0]));
     }
     if (set.width !== undefined || set.height !== undefined) {
       curW = set.width !== undefined ? set.width : curW;
       curH = set.height !== undefined ? set.height : curH;
-      channels.size.push({ t: u.t, dur: u.dur, ease: u.ease, val: [curW, curH] });
+      channels.size.push(ev(u, [curW, curH]));
     }
     if (set.radius !== undefined) {
-      channels.radius.push({ t: u.t, dur: u.dur, ease: u.ease, val: set.radius });
+      channels.radius.push(ev(u, set.radius));
     }
     if (set.scale !== undefined) {
       const sc = set.scale;
-      channels.scale.push({ t: u.t, dur: u.dur, ease: u.ease, val: [sc, sc, 100] });
+      channels.scale.push(ev(u, [sc, sc, 100]));
     }
     if (set.rotation !== undefined) {
-      channels.rot.push({ t: u.t, dur: u.dur, ease: u.ease, val: set.rotation });
+      channels.rot.push(ev(u, set.rotation));
     }
     if (set.opacity !== undefined) {
-      channels.op.push({ t: u.t, dur: u.dur, ease: u.ease, val: set.opacity });
+      channels.op.push(ev(u, set.opacity));
     }
     if (set.color !== undefined) {
-      channels.color.push({ t: u.t, dur: u.dur, ease: u.ease, val: hexToLottieColor(set.color) });
+      channels.color.push(ev(u, hexToLottieColor(set.color)));
     }
   }
   return channels;
 }
+
 
 function createBaseLayer(name, ks, ind, totalFrames, camInd, fixed) {
   const layer = { ddd: 0, ind, nm: name, sr: 1, ks, ao: 0, ip: 0, op: totalFrames, st: 0, bm: 0 };
