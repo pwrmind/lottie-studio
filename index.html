@@ -277,49 +277,51 @@
 'use strict';
 
 /* ============================================================================
- * 1. ДЕМО-СЦЕНАРИЙ ПО УМОЛЧАНИЮ
+ * 1. ДЕМО-СЦЕНАРИЙ С БОЛЬШИМ МИРОМ И УПРАВЛЕНИЕМ КАМЕРОЙ
  * ============================================================================ */
 const DEFAULT_DSL = [
-  "-- Настройка композиции Lottie (холст 9:16 для Shorts / Reels)",
-  "UPDATE composition SET width = 540, height = 960, fps = 60, duration = 6.5;",
+  "-- Окно вывода камеры (вертикальный кадр 540x960)",
+  "UPDATE composition SET width = 540, height = 960, fps = 60, duration = 9.0;",
   "",
-  "-- Наполнение пустого канваса объектами (rect, ellipse, text)",
+  "-- Начальная позиция камеры (смотрит на Сцену 1 в координате x = 350)",
+  "UPDATE camera SET x = 350, y = 480, zoom = 1.0 AT 0.0;",
+  "",
+  "-- Наполнение большого виртуального мира (шириной > 2000px)",
   "INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES",
-  "  ('bg',       'rect',    270, 480, 540, 960, '#0b1021', 0,   100),",
-  "  ('glow',     'ellipse', 270, 460, 320, 320, '#1d4ed8', 0,   25),",
-  "  ('card',     'rect',    270, 480, 420, 260, '#1e293b', 28,  0),",
-  "  ('badge',    'rect',    270, 395, 160, 38,  '#38bdf8', 19,  0),",
-  "  ('dot',      'ellipse', 140, 650, 36,  36,  '#f43f5e', 0,   100);",
+  "  ('world_bg', 'rect',    1100, 480, 2600, 1400, '#070a14', 0,  100),",
+  "  ('zone1',    'rect',    350,  480, 460,  760,  '#131b2e', 32, 100),",
+  "  ('zone2',    'rect',    1100, 480, 460,  760,  '#1e1633', 32, 100),",
+  "  ('zone3',    'rect',    1850, 480, 460,  760,  '#0f292e', 32, 100),",
+  "  ('actor',    'ellipse', 350,  540, 72,   72,   '#38bdf8', 0,  100),",
+  "  ('target',   'rect',    1100, 520, 140,  140,  '#a855f7', 24, 100),",
+  "  ('finish',   'ellipse', 1850, 520, 110,  110,  '#22c55e', 0,  100);",
   "",
   "INSERT INTO layers (id, type, text, x, y, size, color, opacity) VALUES",
-  "  ('tag',      'text', 'SQL -> LOTTIE',     270, 402, 16, '#090d16', 0),",
-  "  ('title',    'text', 'Движок анимации',   270, 475, 34, '#f8fafc', 0),",
-  "  ('subtitle', 'text', 'Компиляция из DSL', 270, 525, 20, '#94a3b8', 0);",
+  "  ('lbl1', 'text', 'СЦЕНА 1 · СТАРТ',    350,  220, 24, '#94a3b8', 100),",
+  "  ('lbl2', 'text', 'СЦЕНА 2 · НАЕЗД',    1100, 220, 24, '#c084fc', 100),",
+  "  ('lbl3', 'text', 'СЦЕНА 3 · КАТ',      1850, 220, 24, '#4ade80', 100);",
   "",
-  "-- Появление карточки и плавный подъём",
-  "UPDATE layers SET opacity = 100, y = 460 WHERE id = 'card'     AT 0.3 WITH (duration = 0.7, ease = 'out');",
-  "UPDATE layers SET opacity = 100, y = 375 WHERE id = 'badge'    AT 0.6 WITH (duration = 0.5, ease = 'out');",
-  "UPDATE layers SET opacity = 100, y = 381 WHERE id = 'tag'      AT 0.6 WITH (duration = 0.5, ease = 'out');",
+  "-- 1. Герой начинает движение из Сцены 1 в Сцену 2, камера плавно ведёт его",
+  "UPDATE layers SET x = 1100                         WHERE id = 'actor'  AT 0.8 WITH (duration = 2.4, ease = 'inOut');",
+  "UPDATE camera SET x = 1100, y = 480, zoom = 1.0    AT 0.8 WITH (duration = 2.4, ease = 'inOut');",
   "",
-  "-- Выезд заголовков",
-  "UPDATE layers SET opacity = 100, y = 455 WHERE id = 'title'    AT 0.9 WITH (duration = 0.6, ease = 'out');",
-  "UPDATE layers SET opacity = 100, y = 505 WHERE id = 'subtitle' AT 1.1 WITH (duration = 0.6, ease = 'out');",
+  "-- 2. Наезд (зум) камеры на объект в Сцене 2 и его вращение",
+  "UPDATE camera SET x = 1100, y = 520, zoom = 1.65   AT 3.3 WITH (duration = 0.8, ease = 'out');",
+  "UPDATE layers SET rotation = 180, scale = 120      WHERE id = 'target' AT 3.4 WITH (duration = 0.9, ease = 'inOut');",
   "",
-  "-- Динамика индикатора и пульсация фонового свечения",
-  "UPDATE layers SET x = 400, color = '#22c55e' WHERE id = 'dot'  AT 1.5 WITH (duration = 1.2, ease = 'inOut');",
-  "UPDATE layers SET scale = 145, opacity = 45  WHERE id = 'glow' AT 1.5 WITH (duration = 1.5, ease = 'inOut');",
-  "UPDATE layers SET scale = 100, opacity = 25  WHERE id = 'glow' AT 3.0 WITH (duration = 1.5, ease = 'inOut');",
+  "-- 3. Отъезд камеры обратно на общий план",
+  "UPDATE camera SET x = 1100, y = 480, zoom = 0.85   AT 4.6 WITH (duration = 0.8, ease = 'inOut');",
   "",
-  "-- Акцентный поворот карточки и возврат",
-  "UPDATE layers SET rotation = -4, scale = 104 WHERE id = 'card' AT 3.2 WITH (duration = 0.5, ease = 'inOut');",
-  "UPDATE layers SET rotation = 0,  scale = 100 WHERE id = 'card' AT 3.8 WITH (duration = 0.5, ease = 'inOut');",
+  "-- 4. Мгновенный монтажный КАТ (duration = 0) в Сцену 3 + телепорт героя",
+  "UPDATE layers SET x = 1850, y = 640, color = '#22c55e' WHERE id = 'actor' AT 5.8;",
+  "UPDATE camera SET x = 1850, y = 480, zoom = 1.0        AT 5.8;",
   "",
-  "-- Плавное затухание в конце",
-  "UPDATE layers SET opacity = 0 WHERE id IN ('card', 'badge', 'tag', 'title', 'subtitle', 'dot') AT 5.5 WITH (duration = 0.8, ease = 'in');"
+  "-- 5. Финальный плавный наезд на Сцену 3",
+  "UPDATE camera SET x = 1850, y = 520, zoom = 1.35   AT 6.2 WITH (duration = 1.5, ease = 'inOut');"
 ].join('\n');
 
 /* ============================================================================
- * 2. ПАРСЕР SQL-DSL
+ * 2. ПАРСЕР SQL-DSL (С ПОДДЕРЖКОЙ UPDATE camera)
  * ============================================================================ */
 function splitTopLevel(str, sep) {
   sep = sep || ',';
@@ -388,6 +390,7 @@ function parseDSL(sqlText) {
   const comp = { width: 540, height: 960, fps: 60, duration: 5.0 };
   const layers = new Map();
   const updates = [];
+  const cameraUpdates = [];
 
   for (let idx = 0; idx < statements.length; idx++) {
     const stmt = statements.at(idx).trim();
@@ -421,7 +424,7 @@ function parseDSL(sqlText) {
         const rowObj = {
           type: 'rect', x: 0, y: 0, width: 100, height: 100,
           scale: 100, rotation: 0, opacity: 100, color: '#ffffff',
-          radius: 0, text: '', size: 24
+          radius: 0, text: '', size: 24, fixed: false
         };
         cols.forEach(function(c, i) { rowObj[c] = vals.at(i); });
         if (!rowObj.id) throw new Error('У каждого слоя в INSERT должен быть указан id');
@@ -437,7 +440,24 @@ function parseDSL(sqlText) {
       continue;
     }
 
-    // 3. UPDATE layers SET ... [WHERE ...] [AT t] [WITH (...)]
+    // 3. UPDATE camera SET ... [AT t] [WITH (...)]
+    const camMatch = stmt.match(
+      /^UPDATE\s+camera\s+SET\s+(.+?)(?:\s+AT\s+([\d.]+))?(?:\s+WITH\s*\((.+)\))?$/is
+    );
+    if (camMatch) {
+      const setObj = parseAssignments(camMatch.at(1));
+      const atTime = camMatch.at(2) !== undefined ? parseFloat(camMatch.at(2)) : 0;
+      const withObj = camMatch.at(3) ? parseAssignments(camMatch.at(3)) : {};
+      cameraUpdates.push({
+        t: atTime,
+        dur: Number(withObj.duration !== undefined ? withObj.duration : (withObj.dur !== undefined ? withObj.dur : 0)),
+        ease: String(withObj.ease !== undefined ? withObj.ease : 'inOut'),
+        set: setObj
+      });
+      continue;
+    }
+
+    // 4. UPDATE layers SET ... [WHERE ...] [AT t] [WITH (...)]
     const updMatch = stmt.match(
       /^UPDATE\s+layers\s+SET\s+(.+?)(?:\s+WHERE\s+(.+?))?(?:\s+AT\s+([\d.]+))?(?:\s+WITH\s*\((.+)\))?$/is
     );
@@ -473,11 +493,11 @@ function parseDSL(sqlText) {
     throw new Error('Неизвестная инструкция SQL: ' + stmt.slice(0, 60));
   }
 
-  return { comp: comp, layers: layers, updates: updates };
+  return { comp: comp, layers: layers, updates: updates, cameraUpdates: cameraUpdates };
 }
 
 /* ============================================================================
- * 3. КОМПИЛЯТОР В LOTTIE JSON (BODIMOVIN FORMAT)
+ * 3. КОМПИЛЯТОР В LOTTIE JSON (С 2D-КАМЕРОЙ ЧЕРЕЗ NULL-СЛОЙ)
  * ============================================================================ */
 const EASING_MAP = {
   linear: { i: { x: Array.of(0),    y: Array.of(1) }, o: { x: Array.of(0),    y: Array.of(0) } },
@@ -500,30 +520,26 @@ function hexToLottieColor(hex) {
 }
 
 function buildKeyframes(events, initialVal, fps, isArray) {
-  const sorted = events.slice().sort(function(a, b) { return a.t - b.t; });
-  if (sorted.length === 0) {
-    return { a: 0, k: isArray ? initialVal.slice() : initialVal };
-  }
-
-  const kf = [];
-  let curVal = initialVal;
-
-  for (const ev of sorted) {
-    const startFrame = Math.round(ev.t * fps);
-    const durFrames = Math.round(ev.dur * fps);
-    const endFrame = startFrame + durFrames;
-    const ease = EASING_MAP[ev.ease] || EASING_MAP.inOut;
-
-    if (durFrames <= 0) {
-      kf.push({
-        t: startFrame,
-        s: isArray ? ev.val.slice() : Array.of(ev.val),
-        h: 1
-      });
-      curVal = ev.val;
-    } else {
-      const last = kf.length > 0 ? kf.at(kf.length - 1) : null;
-
+const sorted = events.slice().sort(function(a, b) { return a.t - b.t; });
+if (sorted.length === 0) {
+return { a: 0, k: isArray ? initialVal.slice() : initialVal };
+}
+const kf = [];
+let curVal = initialVal;
+for (const ev of sorted) {
+const startFrame = Math.round(ev.t * fps);
+const durFrames = Math.round(ev.dur * fps);
+const endFrame = startFrame + durFrames;
+const ease = EASING_MAP[ev.ease] || EASING_MAP.inOut;
+if (durFrames <= 0) {
+kf.push({
+t: startFrame,
+s: isArray ? ev.val.slice() : Array.of(ev.val),
+h: 1
+});
+curVal = ev.val;
+} else {
+const last = kf.length > 0 ? kf.at(kf.length - 1) : null;
 if (!last || last.t < startFrame) {
 kf.push({
 t: startFrame,
@@ -545,13 +561,60 @@ curVal = ev.val;
 }
 return { a: 1, k: kf };
 }
+function buildCameraRigLayer(comp, cameraUpdates, fps, totalFrames, camInd) {
+const initX = comp.width / 2;
+const initY = comp.height / 2;
+const initZoom = 1.0;
+let curX = initX;
+let curY = initY;
+let curZoom = initZoom;
+const anchorEvents = [];
+const scaleEvents = [];
+const sortedCam = cameraUpdates.slice().sort(function(a, b) { return a.t - b.t; });
+for (const u of sortedCam) {
+if (u.set.x !== undefined || u.set.y !== undefined) {
+const nx = u.set.x !== undefined ? u.set.x : curX;
+const ny = u.set.y !== undefined ? u.set.y : curY;
+anchorEvents.push({ t: u.t, dur: u.dur, ease: u.ease, val: Array.of(nx, ny, 0) });
+curX = nx;
+curY = ny;
+}
+if (u.set.zoom !== undefined) {
+curZoom = u.set.zoom;
+const sc = curZoom * 100;
+scaleEvents.push({ t: u.t, dur: u.dur, ease: u.ease, val: Array.of(sc, sc, 100) });
+}
+}
+return {
+ddd: 0,
+ind: camInd,
+nm: 'CAMERA_RIG',
+ty: 3, // Null layer
+sr: 1,
+ks: {
+o: { a: 0, k: 0 },
+r: { a: 0, k: 0 },
+// Камера всегда проецирует свою точку привязки (Anchor) в центр экрана (Position)
+p: { a: 0, k: Array.of(comp.width / 2, comp.height / 2, 0) },
+a: buildKeyframes(anchorEvents, Array.of(initX, initY, 0), fps, true),
+s: buildKeyframes(scaleEvents, Array.of(100, 100, 100), fps, true)
+},
+ao: 0,
+ip: 0,
+op: totalFrames,
+st: 0,
+bm: 0
+};
+}
 function compileToLottie(parsed) {
 const comp = parsed.comp;
 const layers = parsed.layers;
 const updates = parsed.updates;
+const cameraUpdates = parsed.cameraUpdates || [];
 const fps = comp.fps || 60;
 const totalFrames = Math.max(1, Math.round((comp.duration || 5) * fps));
 const lottieLayers = [];
+const CAM_IND = 9999;
 let ind = 1;
 const layerList = Array.from(layers.values()).reverse();
 for (const layer of layerList) {
@@ -605,6 +668,10 @@ op: totalFrames,
 st: 0,
 bm: 0
 };
+// Если слой не помечен как fixed = true (HUD), привязываем его к камере
+if (!layer.fixed) {
+baseLayer.parent = CAM_IND;
+}
 if (layer.type === 'text') {
 lottieLayers.push(Object.assign({}, baseLayer, {
 ty: 5,
@@ -675,25 +742,27 @@ nm: 'Group'
 }));
 }
 }
+// Добавляем управляющий слой камеры в конец списка слоёв
+lottieLayers.push(buildCameraRigLayer(comp, cameraUpdates, fps, totalFrames, CAM_IND));
 return {
-  v: '5.12.2',
-  fr: fps,
-  ip: 0,
-  op: totalFrames,
-  w: comp.width,
-  h: comp.height,
-  nm: 'SQL_DSL_Animation',
-  ddd: 0,
-  assets: new Array(),
-  fonts: {
-    list: Array.of({
-      fName: 'Arial',
-      fFamily: 'Arial',
-      fStyle: 'Regular',
-      ascent: 75
-    })
-  },
-  layers: lottieLayers
+v: '5.12.2',
+fr: fps,
+ip: 0,
+op: totalFrames,
+w: comp.width,
+h: comp.height,
+nm: 'SQL_DSL_Camera_Animation',
+ddd: 0,
+assets: new Array(),
+fonts: {
+list: Array.of({
+fName: 'Arial',
+fFamily: 'Arial',
+fStyle: 'Regular',
+ascent: 75
+})
+},
+layers: lottieLayers
 };
 }
 /* ============================================================================
@@ -749,15 +818,15 @@ if (anim) anim.destroy();
 lottieBox.innerHTML = '';
 fitStageBox(currentLottieData.w, currentLottieData.h);
 anim = lottie.loadAnimation({
-  container: lottieBox,
-  renderer: 'svg',
-  loop: true,
-  autoplay: true,
-  animationData: JSON.parse(JSON.stringify(currentLottieData)),
-  rendererSettings: {
-    preserveAspectRatio: 'xMidYMid meet',
-    progressiveLoad: false
-  }
+container: lottieBox,
+renderer: 'svg',
+loop: true,
+autoplay: true,
+animationData: JSON.parse(JSON.stringify(currentLottieData)),
+rendererSettings: {
+preserveAspectRatio: 'xMidYMid meet',
+progressiveLoad: false
+}
 });
 isPlaying = true;
 btnPlay.textContent = '⏸ Пауза';
@@ -912,7 +981,6 @@ document.getElementById('btn-export-video').disabled = false;
 if (anim) { anim.play(); isPlaying = true; btnPlay.textContent = '⏸ Пауза'; }
 });
 compileAndRun();
-
 </script>
 </body>
 </html>
