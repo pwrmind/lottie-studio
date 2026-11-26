@@ -119,7 +119,7 @@
     font-weight: 600;
   }
 
-  /* Left: DSL Editor */
+  /* Левая панель: редактор DSL */
   textarea.code-area {
     flex: 1;
     width: 100%;
@@ -145,7 +145,7 @@
   }
   .error-banner.visible { display: block; }
 
-  /* Right: Preview & Raw JSON */
+  /* Правая панель: превью и raw JSON */
   .view-container {
     flex: 1;
     position: relative;
@@ -231,7 +231,7 @@
 <body>
 
 <div class="workspace">
-  <!-- ================= ЛЕВАЯ ПАНЕЛЬ: LSL-DSL ================= -->
+  <!-- ============ ЛЕВАЯ ПАНЕЛЬ: LSL-DSL ============ -->
   <section class="panel">
     <div class="toolbar">
       <span class="toolbar-title">LSL Сценарий</span>
@@ -245,7 +245,7 @@
     <div class="error-banner" id="error-box"></div>
   </section>
 
-  <!-- ================= ПРАВАЯ ПАНЕЛЬ: LOTTIE & RAW ================= -->
+  <!-- ============ ПРАВАЯ ПАНЕЛЬ: LOTTIE & RAW ============ -->
   <section class="panel">
     <div class="toolbar">
       <span class="toolbar-title">Lottie Студия</span>
@@ -277,78 +277,92 @@
 'use strict';
 
 /* ============================================================================
- * 1. ДЕМО-СЦЕНАРИЙ С БОЛЬШИМ МИРОМ, КАМЕРОЙ И ШРИФТАМИ
- * ============================================================================ */
-const DEFAULT_DSL = [
-  "-- Окно вывода камеры (вертикальный кадр 540x960)",
-  "UPDATE composition SET width = 540, height = 960, fps = 60, duration = 9.0;",
-  "",
-  "-- Начальная позиция камеры (смотрит на Сцену 1 в координате x = 350)",
-  "UPDATE camera SET x = 350, y = 480, zoom = 1.0 AT 0.0;",
-  "",
-  "-- Наполнение большого виртуального мира (шириной > 2000px)",
-  "INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES",
-  "  ('world_bg', 'rect',    1100, 480, 2600, 1400, '#070a14', 0,  100),",
-  "  ('zone1',    'rect',    350,  480, 460,  760,  '#131b2e', 32, 100),",
-  "  ('zone2',    'rect',    1100, 480, 460,  760,  '#1e1633', 32, 100),",
-  "  ('zone3',    'rect',    1850, 480, 460,  760,  '#0f292e', 32, 100),",
-  "  ('actor',    'ellipse', 350,  540, 72,   72,   '#38bdf8', 0,  100),",
-  "  ('target',   'rect',    1100, 520, 140,  140,  '#a855f7', 24, 100),",
-  "  ('finish',   'ellipse', 1850, 520, 110,  110,  '#22c55e', 0,  100);",
-  "",
-  "-- Текстовые слои с указанием шрифтов (Google Fonts или системные)",
-  "INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES",
-  "  ('lbl1', 'text', 'СЦЕНА 1 · СТАРТ', 'Kablammo',       350,  220, 26, '#94a3b8', 100),",
-  "  ('lbl2', 'text', 'СЦЕНА 2 · НАЕЗД', 'Playpen Sans', 1100, 220, 28, '#c084fc', 100),",
-  "  ('lbl3', 'text', 'СЦЕНА 3 · КАТ',   'Comforter',      1850, 220, 24, '#4ade80', 100);",
-  "",
-  "-- 1. Герой начинает движение из Сцены 1 в Сцену 2, камера плавно ведёт его",
-  "UPDATE layers SET x = 1100                         WHERE id = 'actor'  AT 0.8 WITH (duration = 2.4, ease = 'inOut');",
-  "UPDATE camera SET x = 1100, y = 480, zoom = 1.0    AT 0.8 WITH (duration = 2.4, ease = 'inOut');",
-  "",
-  "-- 2. Наезд (зум) камеры на объект в Сцене 2 и его вращение",
-  "UPDATE camera SET x = 1100, y = 520, zoom = 1.65   AT 3.3 WITH (duration = 0.8, ease = 'out');",
-  "UPDATE layers SET rotation = 180, scale = 120      WHERE id = 'target' AT 3.4 WITH (duration = 0.9, ease = 'inOut');",
-  "",
-  "-- 3. Отъезд камеры обратно на общий план",
-  "UPDATE camera SET x = 1100, y = 480, zoom = 0.85   AT 4.6 WITH (duration = 0.8, ease = 'inOut');",
-  "",
-  "-- 4. Мгновенный монтажный КАТ (duration = 0) в Сцену 3 + телепорт героя",
-  "UPDATE layers SET x = 1850, y = 640, color = '#22c55e' WHERE id = 'actor' AT 5.8;",
-  "UPDATE camera SET x = 1850, y = 480, zoom = 1.0        AT 5.8;",
-  "",
-  "-- 5. Финальный плавный наезд на Сцену 3",
-  "UPDATE camera SET x = 1850, y = 520, zoom = 1.35   AT 6.2 WITH (duration = 1.5, ease = 'inOut');"
-].join('\n');
+ * 1. ДЕМО-СЦЕНАРИЙ: большой мир, камера, шрифты
+ * ========================================================================== */
+
+const DEFAULT_DSL = `-- Окно вывода камеры (вертикальный кадр 540x960)
+UPDATE composition SET width = 540, height = 960, fps = 60, duration = 9.0;
+
+-- Начальная позиция камеры (смотрит на Сцену 1 в координате x = 350)
+UPDATE camera SET x = 350, y = 480, zoom = 1.0 AT 0.0;
+
+-- Наполнение большого виртуального мира (шириной > 2000px)
+INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
+  ('world_bg', 'rect',    1100, 480, 2600, 1400, '#070a14', 0,  100),
+  ('zone1',    'rect',    350,  480, 460,  760,  '#131b2e', 32, 100),
+  ('zone2',    'rect',    1100, 480, 460,  760,  '#1e1633', 32, 100),
+  ('zone3',    'rect',    1850, 480, 460,  760,  '#0f292e', 32, 100),
+  ('actor',    'ellipse', 350,  540, 72,   72,   '#38bdf8', 0,  100),
+  ('target',   'rect',    1100, 520, 140,  140,  '#a855f7', 24, 100),
+  ('finish',   'ellipse', 1850, 520, 110,  110,  '#22c55e', 0,  100);
+
+-- Текстовые слои с указанием шрифтов (Google Fonts или системные)
+INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
+  ('lbl1', 'text', 'СЦЕНА 1 · СТАРТ', 'Kablammo',       350,  220, 26, '#94a3b8', 100),
+  ('lbl2', 'text', 'СЦЕНА 2 · НАЕЗД', 'Playpen Sans', 1100, 220, 28, '#c084fc', 100),
+  ('lbl3', 'text', 'СЦЕНА 3 · КАТ',   'Comforter',      1850, 220, 24, '#4ade80', 100);
+
+-- 1. Герой начинает движение из Сцены 1 в Сцену 2, камера плавно ведёт его
+UPDATE layers SET x = 1100 WHERE id = 'actor' AT 0.8 WITH (duration = 2.4, ease = 'inOut');
+UPDATE camera SET x = 1100, y = 480, zoom = 1.0 AT 0.8 WITH (duration = 2.4, ease = 'inOut');
+
+-- 2. Наезд (зум) камеры на объект в Сцене 2 и его вращение
+UPDATE camera SET x = 1100, y = 520, zoom = 1.65 AT 3.3 WITH (duration = 0.8, ease = 'out');
+UPDATE layers SET rotation = 180, scale = 120 WHERE id = 'target' AT 3.4 WITH (duration = 0.9, ease = 'inOut');
+
+-- 3. Отъезд камеры обратно на общий план
+UPDATE camera SET x = 1100, y = 480, zoom = 0.85 AT 4.6 WITH (duration = 0.8, ease = 'inOut');
+
+-- 4. Мгновенный монтажный КАТ (duration = 0) в Сцену 3 + телепорт героя
+UPDATE layers SET x = 1850, y = 640, color = '#22c55e' WHERE id = 'actor' AT 5.8;
+UPDATE camera SET x = 1850, y = 480, zoom = 1.0 AT 5.8;
+
+-- 5. Финальный плавный наезд на Сцену 3
+UPDATE camera SET x = 1850, y = 520, zoom = 1.35 AT 6.2 WITH (duration = 1.5, ease = 'inOut');
+`;
 
 /* ============================================================================
- * 2. ПАРСЕР LSL (С ПОДДЕРЖКОЙ UPDATE camera И ПОЛЯ font)
- * ============================================================================ */
-function splitTopLevel(str, sep) {
-  sep = sep || ',';
-  const res = [];
-  let cur = '', quote = null, depth = 0;
+ * 2. БАЗОВЫЕ УТИЛИТЫ ПАРСЕРА
+ * ========================================================================== */
+
+/** Разделяет строку по разделителю, игнорируя его внутри кавычек и скобок. */
+function splitTopLevel(str, sep = ',') {
+  const parts = [];
+  let current = '';
+  let quote = null;
+  let depth = 0;
   for (let i = 0; i < str.length; i++) {
-    const ch = str.charAt(i);
+    const ch = str[i];
     if (quote) {
-      cur += ch;
-      if (ch === quote && str.charAt(i - 1) !== '\\') quote = null;
+      current += ch;
+      if (ch === quote && str[i - 1] !== '\\') quote = null;
+    } else if (ch === "'" || ch === '"') {
+      quote = ch;
+      current += ch;
+    } else if (ch === '(') {
+      depth++;
+      current += ch;
+    } else if (ch === ')') {
+      depth--;
+      current += ch;
+    } else if (ch === sep && depth === 0) {
+      parts.push(current.trim());
+      current = '';
     } else {
-      if (ch === "'" || ch === '"') quote = ch;
-      else if (ch === '(') depth++;
-      else if (ch === ')') depth--;
-      if (ch === sep && depth === 0) {
-        res.push(cur.trim());
-        cur = '';
-        continue;
-      }
-      cur += ch;
+      current += ch;
     }
   }
-  if (cur.trim()) res.push(cur.trim());
-  return res;
+  if (current.trim()) parts.push(current.trim());
+  return parts;
 }
 
+/** Срезает внешние скобки: "(a, b)" -> "a, b". */
+function stripParens(str) {
+  const t = str.trim();
+  return t.startsWith('(') && t.endsWith(')') ? t.slice(1, -1) : t;
+}
+
+/** '123' -> "123", "'текст'" -> текст, "true" -> true. */
 function parseValue(raw) {
   const s = raw.trim();
   if ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith('"') && s.endsWith('"'))) {
@@ -356,811 +370,863 @@ function parseValue(raw) {
   }
   if (s === 'true') return true;
   if (s === 'false') return false;
-  if (!isNaN(Number(s)) && s !== '') return Number(s);
-  return s;
+  const num = Number(s);
+  return s !== '' && !isNaN(num) ? num : s;
 }
 
+/** "x = 10, color = '#fff'" -> { x: 10, color: '#fff' }. */
 function parseAssignments(str) {
   const obj = {};
-  for (const part of splitTopLevel(str, ',')) {
+  for (const part of splitTopLevel(str)) {
     const eq = part.indexOf('=');
     if (eq === -1) throw new Error('Ожидалось присваивание "ключ = значение" в: ' + part);
-    const k = part.slice(0, eq).trim();
-    const v = part.slice(eq + 1).trim();
-    obj[k] = parseValue(v);
+    obj[part.slice(0, eq).trim()] = parseValue(part.slice(eq + 1));
   }
   return obj;
 }
 
-function parseDSL(lslText) {
-  const cleaned = lslText
-    .split('\n')
-    .map(function(line) {
-      let inStr = false, q = '';
-      for (let i = 0; i < line.length - 1; i++) {
-        const c = line.charAt(i);
-        if (inStr) { if (c === q) inStr = false; }
-        else if (c === "'" || c === '"') { inStr = true; q = c; }
-        else if (c === '-' && line.charAt(i + 1) === '-') return line.slice(0, i);
-      }
-      return line;
-    })
-    .join('\n');
+/** Убирает комментарий "-- ..." с учётом кавычек. */
+function stripLineComment(line) {
+  let quote = null;
+  for (let i = 0; i < line.length - 1; i++) {
+    const ch = line[i];
+    if (quote) {
+      if (ch === quote && line[i - 1] !== '\\') quote = null;
+    } else if (ch === "'" || ch === '"') {
+      quote = ch;
+    } else if (ch === '-' && line[i + 1] === '-') {
+      return line.slice(0, i);
+    }
+  }
+  return line;
+}
 
+/** Возвращает индекс парной скобки к openIndex (без учёта вложенности не нужен). */
+function findClosingParen(text, openIndex) {
+  let quote = null;
+  let depth = 0;
+  for (let i = openIndex; i < text.length; i++) {
+    const ch = text[i];
+    if (quote) {
+      if (ch === quote && text[i - 1] !== '\\') quote = null;
+    } else if (ch === "'" || ch === '"') {
+      quote = ch;
+    } else if (ch === '(') {
+      depth++;
+    } else if (ch === ')' && --depth === 0) {
+      return i;
+    }
+  }
+  return text.length - 1;
+}
+
+/**
+ * Находит ключевые слова вне кавычек и скобочных групп: [{ word, index }].
+ * Используется, чтобы надёжно отделить опциональные части UPDATE
+ * (WHERE / AT / WITH), даже если значения содержат похожие слова в кавычках.
+ */
+function findTopLevelKeywords(text, words) {
+  const found = [];
+  const upper = text.toUpperCase();
+  let quote = null;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quote) {
+      if (ch === quote && text[i - 1] !== '\\') quote = null;
+      continue;
+    }
+    if (ch === "'" || ch === '"') { quote = ch; continue; }
+    if (ch === '(') { i = findClosingParen(text, i); continue; }
+
+    const startsWord = i === 0 || /\s/.test(text[i - 1]);
+    if (!startsWord) continue;
+    for (const w of words) {
+      const end = i + w.length;
+      if (upper.startsWith(w, i) && (end >= text.length || /\s/.test(text[end]))) {
+        found.push({ word: w, index: i });
+        i = end - 1;
+        break;
+      }
+    }
+  }
+  return found;
+}
+
+/** Разбирает хвост UPDATE: SET-часть плюс необязательные WHERE / AT / WITH (...). */
+function splitUpdateTail(rest) {
+  const marks = findTopLevelKeywords(rest, ['WHERE', 'AT', 'WITH'])
+    .sort((a, b) => a.index - b.index);
+  const tail = { set: '', where: null, at: 0, with: {} };
+
+  for (let i = 0; i < marks.length; i++) {
+    const { word, index } = marks[i];
+    const next = i + 1 < marks.length ? marks[i + 1].index : rest.length;
+    const segment = rest.slice(index + word.length, next).trim();
+    if (i === 0) tail.set = rest.slice(0, index).trim();
+
+    if (word === 'AT') {
+      tail.at = parseFloat(segment) || 0;
+    } else if (word === 'WITH') {
+      tail.with = parseAssignments(stripParens(segment));
+    } else {
+      tail.where = segment;
+    }
+  }
+  if (!marks.length) tail.set = rest.trim();
+  return tail;
+}
+
+/** Приводит SET/AT/WITH к единому объекту события анимации. */
+function makeUpdate(setPart, atTime, withObj) {
+  return {
+    t: atTime || 0,
+    dur: Number(withObj.duration ?? withObj.dur ?? 0),
+    ease: String(withObj.ease ?? 'inOut'),
+    set: parseAssignments(setPart),
+  };
+}
+
+/* ============================================================================
+ * 3. ПАРСЕР LSL
+ * ========================================================================== */
+
+const DEFAULT_LAYER = {
+  type: 'rect', x: 0, y: 0, width: 100, height: 100,
+  scale: 100, rotation: 0, opacity: 100, color: '#ffffff',
+  radius: 0, text: '', size: 24, font: 'Arial', fixed: false,
+};
+
+function tryParseInsert(stmt, layers) {
+  const match = stmt.match(/^INSERT\s+INTO\s+layers\s*\(([^)]+)\)\s*VALUES\s*(.+)$/is);
+  if (!match) return false;
+
+  const columns = splitTopLevel(match[1]).map((c) => c.trim());
+  for (const tuple of splitTopLevel(match[2])) {
+    const values = splitTopLevel(stripParens(tuple)).map(parseValue);
+    if (values.length !== columns.length) {
+      throw new Error(
+        `Количество значений (${values.length}) не совпадает с колонками (${columns.length})`
+      );
+    }
+    const layer = { ...DEFAULT_LAYER };
+    columns.forEach((col, i) => { layer[col] = values[i]; });
+    if (!layer.id) throw new Error('У каждого слоя в INSERT должен быть указан id');
+    layers.set(layer.id, layer);
+  }
+  return true;
+}
+
+function tryParseCompositionUpdate(stmt, comp) {
+  const match = stmt.match(/^UPDATE\s+composition\s+SET\s+(.+)$/is);
+  if (!match) return false;
+  Object.assign(comp, parseAssignments(match[1]));
+  return true;
+}
+
+function tryParseCameraUpdate(stmt, out) {
+  const match = stmt.match(/^UPDATE\s+camera\s+SET\s+(.+)$/is);
+  if (!match) return false;
+  const tail = splitUpdateTail(match[1]);
+  out.push(makeUpdate(tail.set, tail.at, tail.with));
+  return true;
+}
+
+function tryParseLayerUpdate(stmt, out) {
+  const match = stmt.match(/^UPDATE\s+layers\s+SET\s+(.+)$/is);
+  if (!match) return false;
+
+  const tail = splitUpdateTail(match[1]);
+  const update = makeUpdate(tail.set, tail.at, tail.with);
+  update.targetIds = null;
+
+  if (tail.where) {
+    const inMatch = tail.where.match(/^id\s+IN\s*\((.+)\)$/i);
+    const eqMatch = tail.where.match(/^id\s*=\s*(.+)$/i);
+    if (inMatch) {
+      update.targetIds = splitTopLevel(inMatch[1]).map(parseValue);
+    } else if (eqMatch) {
+      update.targetIds = [parseValue(eqMatch[1])];
+    } else {
+      throw new Error('Неподдерживаемое условие WHERE: ' + tail.where);
+    }
+  }
+  out.push(update);
+  return true;
+}
+
+function parseDSL(text) {
+  const cleaned = text.split('\n').map(stripLineComment).join('\n');
   const statements = splitTopLevel(cleaned, ';');
+
   const comp = { width: 540, height: 960, fps: 60, duration: 5.0 };
   const layers = new Map();
   const updates = [];
   const cameraUpdates = [];
 
-  for (let idx = 0; idx < statements.length; idx++) {
-    const stmt = statements.at(idx).trim();
+  for (const raw of statements) {
+    const stmt = raw.trim();
     if (!stmt) continue;
-
-    // 1. INSERT INTO layers (cols) VALUES (vals), (vals)...
-    const insMatch = stmt.match(/^INSERT\s+INTO\s+layers\s*\(([^)]+)\)\s*VALUES\s*(.+)$/is);
-    if (insMatch) {
-      const cols = splitTopLevel(insMatch.at(1), ',').map(function(c) { return c.trim(); });
-      const rowsRaw = insMatch.at(2).trim();
-      const tuples = [];
-      let depth = 0, start = -1, quote = null;
-      for (let i = 0; i < rowsRaw.length; i++) {
-        const ch = rowsRaw.charAt(i);
-        if (quote) { if (ch === quote) quote = null; continue; }
-        if (ch === "'" || ch === '"') { quote = ch; continue; }
-        if (ch === '(') { if (depth === 0) start = i + 1; depth++; }
-        else if (ch === ')') {
-          depth--;
-          if (depth === 0 && start !== -1) {
-            tuples.push(rowsRaw.slice(start, i));
-            start = -1;
-          }
-        }
-      }
-      for (const tup of tuples) {
-        const vals = splitTopLevel(tup, ',').map(parseValue);
-        if (vals.length !== cols.length) {
-          throw new Error('Количество значений (' + vals.length + ') не совпадает с колонками (' + cols.length + ')');
-        }
-        const rowObj = {
-          type: 'rect', x: 0, y: 0, width: 100, height: 100,
-          scale: 100, rotation: 0, opacity: 100, color: '#ffffff',
-          radius: 0, text: '', size: 24, font: 'Arial', fixed: false
-        };
-        cols.forEach(function(c, i) { rowObj[c] = vals.at(i); });
-        if (!rowObj.id) throw new Error('У каждого слоя в INSERT должен быть указан id');
-        layers.set(rowObj.id, rowObj);
-      }
-      continue;
-    }
-
-    // 2. UPDATE composition SET ...
-    const compMatch = stmt.match(/^UPDATE\s+composition\s+SET\s+(.+)$/is);
-    if (compMatch) {
-      Object.assign(comp, parseAssignments(compMatch.at(1)));
-      continue;
-    }
-
-    // 3. UPDATE camera SET ... [AT t] [WITH (...)]
-    const camMatch = stmt.match(
-      /^UPDATE\s+camera\s+SET\s+(.+?)(?:\s+AT\s+([\d.]+))?(?:\s+WITH\s*\((.+)\))?$/is
-    );
-    if (camMatch) {
-      const setObj = parseAssignments(camMatch.at(1));
-      const atTime = camMatch.at(2) !== undefined ? parseFloat(camMatch.at(2)) : 0;
-      const withObj = camMatch.at(3) ? parseAssignments(camMatch.at(3)) : {};
-      cameraUpdates.push({
-        t: atTime,
-        dur: Number(withObj.duration !== undefined ? withObj.duration : (withObj.dur !== undefined ? withObj.dur : 0)),
-        ease: String(withObj.ease !== undefined ? withObj.ease : 'inOut'),
-        set: setObj
-      });
-      continue;
-    }
-
-    // 4. UPDATE layers SET ... [WHERE ...] [AT t] [WITH (...)]
-    const updMatch = stmt.match(
-      /^UPDATE\s+layers\s+SET\s+(.+?)(?:\s+WHERE\s+(.+?))?(?:\s+AT\s+([\d.]+))?(?:\s+WITH\s*\((.+)\))?$/is
-    );
-    if (updMatch) {
-      const setObj = parseAssignments(updMatch.at(1));
-      const whereRaw = updMatch.at(2);
-      const atTime = updMatch.at(3) !== undefined ? parseFloat(updMatch.at(3)) : 0;
-      const withObj = updMatch.at(4) ? parseAssignments(updMatch.at(4)) : {};
-
-      let targetIds = null;
-      if (whereRaw) {
-        const inMatch = whereRaw.match(/^id\s+IN\s*\((.+)\)$/i);
-        const eqMatch = whereRaw.match(/^id\s*=\s*(.+)$/i);
-        if (inMatch) {
-          targetIds = splitTopLevel(inMatch.at(1), ',').map(parseValue);
-        } else if (eqMatch) {
-          targetIds = Array.of(parseValue(eqMatch.at(1)));
-        } else {
-          throw new Error('Неподдерживаемое условие WHERE: ' + whereRaw);
-        }
-      }
-
-      updates.push({
-        t: atTime,
-        dur: Number(withObj.duration !== undefined ? withObj.duration : (withObj.dur !== undefined ? withObj.dur : 0)),
-        ease: String(withObj.ease !== undefined ? withObj.ease : 'inOut'),
-        targetIds: targetIds,
-        set: setObj
-      });
-      continue;
-    }
-
+    if (tryParseInsert(stmt, layers)) continue;
+    if (tryParseCompositionUpdate(stmt, comp)) continue;
+    if (tryParseCameraUpdate(stmt, cameraUpdates)) continue;
+    if (tryParseLayerUpdate(stmt, updates)) continue;
     throw new Error('Неизвестная инструкция LSL: ' + stmt.slice(0, 60));
   }
 
-  return { comp: comp, layers: layers, updates: updates, cameraUpdates: cameraUpdates };
+  return { comp, layers, updates, cameraUpdates };
 }
 
 /* ============================================================================
- * 3. КОМПИЛЯТОР В LOTTIE JSON (С 2D-КАМЕРОЙ И ДИНАМИЧЕСКИМИ ШРИФТАМИ)
- * ============================================================================ */
-const EASING_MAP = {
-  linear: { i: { x: Array.of(0),    y: Array.of(1) }, o: { x: Array.of(0),    y: Array.of(0) } },
-  in:     { i: { x: Array.of(0),    y: Array.of(1) }, o: { x: Array.of(0.42), y: Array.of(0) } },
-  out:    { i: { x: Array.of(0.58), y: Array.of(1) }, o: { x: Array.of(0),    y: Array.of(0) } },
-  inOut:  { i: { x: Array.of(0.42), y: Array.of(1) }, o: { x: Array.of(0.58), y: Array.of(0) } }
+ * 4. КОМПИЛЯТОР В LOTTIE JSON (2D-камера + динамические шрифты)
+ * ========================================================================== */
+
+const bezier = (ix, iy, ox, oy) => ({ i: { x: [ix], y: [iy] }, o: { x: [ox], y: [oy] } });
+
+const EASING = {
+  linear: bezier(0, 1, 0, 0),
+  in:     bezier(0, 1, 0.42, 0),
+  out:    bezier(0.58, 1, 0, 0),
+  inOut:  bezier(0.42, 1, 0.58, 0),
 };
+const LINEAR = EASING.linear;
 
 function hexToLottieColor(hex) {
   let c = String(hex).replace('#', '').trim();
-  if (c.length === 3) c = c.split('').map(function(x) { return x + x; }).join('');
+  if (c.length === 3) c = [...c].map((x) => x + x).join('');
   const num = parseInt(c, 16);
-  if (isNaN(num)) return Array.of(1, 1, 1, 1);
+  if (isNaN(num)) return [1, 1, 1, 1];
+  return [
+    ((num >> 16) & 255) / 255,
+    ((num >> 8) & 255) / 255,
+    (num & 255) / 255,
+    1,
+  ].map((v) => +v.toFixed(4));
+}
 
-return Array.of(
-+(((num >> 16) & 255) / 255).toFixed(4),
-+(((num >> 8) & 255) / 255).toFixed(4),
-+((num & 255) / 255).toFixed(4),
-1
-);
-}
+/** Собирает Lottie-трек ключевых кадров из событий { t, dur, ease, val }. */
 function buildKeyframes(events, initialVal, fps, isArray) {
-const sorted = events.slice().sort(function(a, b) { return a.t - b.t; });
-if (sorted.length === 0) {
-return { a: 0, k: isArray ? initialVal.slice() : initialVal };
+  const make = (val) => (isArray ? val.slice() : [val]);
+  const sorted = [...events].sort((a, b) => a.t - b.t);
+  if (!sorted.length) return { a: 0, k: make(initialVal) };
+
+  const kf = [];
+  const last = () => kf[kf.length - 1];
+  const push = (t, val, ease) => kf.push({ t, s: make(val), i: ease.i, o: ease.o });
+  let curVal = initialVal;
+
+  for (const ev of sorted) {
+    const startFrame = Math.round(ev.t * fps);
+    const endFrame = startFrame + Math.round(ev.dur * fps);
+    const ease = EASING[ev.ease] || EASING.inOut;
+
+    if (Math.round(ev.dur * fps) <= 0) {
+      // Мгновенный скачок: держим старое значение до кадра перед стартом
+      if (startFrame > 0) {
+        const prev = startFrame - 1;
+        if (!last() || last().t < prev) push(prev, curVal, LINEAR);
+      }
+      if (last() && last().t === startFrame) {
+        Object.assign(last(), { s: make(ev.val), i: LINEAR.i, o: LINEAR.o });
+      } else {
+        push(startFrame, ev.val, LINEAR);
+      }
+    } else {
+      if (!last() || last().t < startFrame) {
+        push(startFrame, curVal, ease);
+      } else if (last().t === startFrame) {
+        last().i = ease.i;
+        last().o = ease.o;
+      }
+      push(endFrame, ev.val, LINEAR);
+    }
+    curVal = ev.val;
+  }
+  return { a: 1, k: kf };
 }
-const kf = [];
-let curVal = initialVal;
-const lin = EASING_MAP.linear;
-for (const ev of sorted) {
-const startFrame = Math.round(ev.t * fps);
-const durFrames = Math.round(ev.dur * fps);
-const endFrame = startFrame + durFrames;
-const ease = EASING_MAP[ev.ease] || EASING_MAP.inOut;
-if (durFrames <= 0) {
-if (startFrame > 0) {
-const prevFrame = startFrame - 1;
-const last = kf.length > 0 ? kf.at(kf.length - 1) : null;
-if (!last || last.t < prevFrame) {
-kf.push({
-t: prevFrame,
-s: isArray ? curVal.slice() : Array.of(curVal),
-i: lin.i,
-o: lin.o
-});
+
+/** Разбирает UPDATE-события одного слоя на анимационные каналы. */
+function collectLayerEvents(layer, updates) {
+  const channels = { pos: [], scale: [], rot: [], op: [], color: [] };
+  let curX = layer.x;
+  let curY = layer.y;
+
+  for (const u of updates) {
+    if (u.targetIds && !u.targetIds.includes(layer.id)) continue;
+    const { set } = u;
+
+    if (set.x !== undefined || set.y !== undefined) {
+      curX = set.x !== undefined ? set.x : curX;
+      curY = set.y !== undefined ? set.y : curY;
+      channels.pos.push({ t: u.t, dur: u.dur, ease: u.ease, val: [curX, curY, 0] });
+    }
+    if (set.scale !== undefined) {
+      const sc = set.scale;
+      channels.scale.push({ t: u.t, dur: u.dur, ease: u.ease, val: [sc, sc, 100] });
+    }
+    if (set.rotation !== undefined) {
+      channels.rot.push({ t: u.t, dur: u.dur, ease: u.ease, val: set.rotation });
+    }
+    if (set.opacity !== undefined) {
+      channels.op.push({ t: u.t, dur: u.dur, ease: u.ease, val: set.opacity });
+    }
+    if (set.color !== undefined) {
+      channels.color.push({ t: u.t, dur: u.dur, ease: u.ease, val: hexToLottieColor(set.color) });
+    }
+  }
+  return channels;
 }
+
+function createBaseLayer(name, ks, ind, totalFrames, camInd, fixed) {
+  const layer = { ddd: 0, ind, nm: name, sr: 1, ks, ao: 0, ip: 0, op: totalFrames, st: 0, bm: 0 };
+  if (!fixed) layer.parent = camInd;
+  return layer;
 }
-const lastNow = kf.length > 0 ? kf.at(kf.length - 1) : null;
-if (lastNow && lastNow.t === startFrame) {
-lastNow.s = isArray ? ev.val.slice() : Array.of(ev.val);
-lastNow.i = lin.i;
-lastNow.o = lin.o;
-} else {
-kf.push({
-t: startFrame,
-s: isArray ? ev.val.slice() : Array.of(ev.val),
-i: lin.i,
-o: lin.o
-});
+
+function layerTransform(layer, channels, fps) {
+  return {
+    o: buildKeyframes(channels.op, layer.opacity, fps, false),
+    r: buildKeyframes(channels.rot, layer.rotation, fps, false),
+    p: buildKeyframes(channels.pos, [layer.x, layer.y, 0], fps, true),
+    a: { a: 0, k: [0, 0, 0] },
+    s: buildKeyframes(channels.scale, [layer.scale, layer.scale, 100], fps, true),
+  };
 }
-curVal = ev.val;
-} else {
-const last = kf.length > 0 ? kf.at(kf.length - 1) : null;
-if (!last || last.t < startFrame) {
-kf.push({
-t: startFrame,
-s: isArray ? curVal.slice() : Array.of(curVal),
-i: ease.i,
-o: ease.o
-});
-} else if (last.t === startFrame) {
-last.i = ease.i;
-last.o = ease.o;
+
+function createShapeLayer(layer, channels, ind, totalFrames, fps, camInd) {
+  const geometry = layer.type === 'ellipse'
+    ? { ty: 'el', d: 1, s: { a: 0, k: [layer.width, layer.height] }, p: { a: 0, k: [0, 0] }, nm: 'Ellipse' }
+    : { ty: 'rc', d: 1, s: { a: 0, k: [layer.width, layer.height] }, p: { a: 0, k: [0, 0] }, r: { a: 0, k: layer.radius || 0 }, nm: 'Rectangle' };
+
+  return {
+    ...createBaseLayer(layer.id, layerTransform(layer, channels, fps), ind, totalFrames, camInd, layer.fixed),
+    ty: 4,
+    shapes: [{
+      ty: 'gr',
+      it: [
+        geometry,
+        {
+          ty: 'fl',
+          c: buildKeyframes(channels.color, hexToLottieColor(layer.color), fps, true),
+          o: { a: 0, k: 100 },
+          r: 1,
+          bm: 0,
+          nm: 'Fill',
+        },
+        {
+          ty: 'tr',
+          p: { a: 0, k: [0, 0] },
+          a: { a: 0, k: [0, 0] },
+          s: { a: 0, k: [100, 100] },
+          r: { a: 0, k: 0 },
+          o: { a: 0, k: 100 },
+        },
+      ],
+      nm: 'Group',
+    }],
+  };
 }
-kf.push({
-t: endFrame,
-s: isArray ? ev.val.slice() : Array.of(ev.val),
-i: lin.i,
-o: lin.o
-});
-curVal = ev.val;
+
+function createTextLayer(layer, channels, ind, totalFrames, fps, camInd) {
+  const size = layer.size || 24;
+  const fontName = resolveFontName(layer);
+  return {
+    ...createBaseLayer(layer.id, layerTransform(layer, channels, fps), ind, totalFrames, camInd, layer.fixed),
+    ty: 5,
+    t: {
+      d: {
+        k: [{
+          s: {
+            s: size,
+            f: fontName,
+            t: String(layer.text || ''),
+            j: 2,
+            tr: 0,
+            lh: size * 1.2,
+            ls: 0,
+            fc: hexToLottieColor(layer.color).slice(0, 3),
+          },
+          t: 0,
+        }],
+      },
+      p: {},
+      m: { g: 1, a: { a: 0, k: [0, 0] } },
+      a: [],
+    },
+  };
 }
+
+/** Разбирает события камеры на каналы anchor (позиция) и scale (zoom * 100). */
+function collectCameraEvents(comp, cameraUpdates) {
+  const anchor = [];
+  const scale = [];
+  let curX = comp.width / 2;
+  let curY = comp.height / 2;
+
+  for (const u of [...cameraUpdates].sort((a, b) => a.t - b.t)) {
+    if (u.set.x !== undefined || u.set.y !== undefined) {
+      curX = u.set.x !== undefined ? u.set.x : curX;
+      curY = u.set.y !== undefined ? u.set.y : curY;
+      anchor.push({ t: u.t, dur: u.dur, ease: u.ease, val: [curX, curY, 0] });
+    }
+    if (u.set.zoom !== undefined) {
+      const sc = u.set.zoom * 100;
+      scale.push({ t: u.t, dur: u.dur, ease: u.ease, val: [sc, sc, 100] });
+    }
+  }
+  return { anchor, scale };
 }
-return { a: 1, k: kf };
+
+/** Камера — это null-слой (ty: 3), к которому привязаны все обычные слои. */
+function createCameraRig(comp, cameraUpdates, fps, totalFrames, camInd) {
+  const { anchor, scale } = collectCameraEvents(comp, cameraUpdates);
+  return {
+    ddd: 0,
+    ind: camInd,
+    nm: 'CAMERA_RIG',
+    ty: 3,
+    sr: 1,
+    ks: {
+      o: { a: 0, k: 0 },
+      r: { a: 0, k: 0 },
+      p: { a: 0, k: [comp.width / 2, comp.height / 2, 0] },
+      a: buildKeyframes(anchor, [comp.width / 2, comp.height / 2, 0], fps, true),
+      s: buildKeyframes(scale, [100, 100, 100], fps, true),
+    },
+    ao: 0,
+    ip: 0,
+    op: totalFrames,
+    st: 0,
+    bm: 0,
+  };
 }
-function buildCameraRigLayer(comp, cameraUpdates, fps, totalFrames, camInd) {
-const initX = comp.width / 2;
-const initY = comp.height / 2;
-const initZoom = 1.0;
-let curX = initX;
-let curY = initY;
-let curZoom = initZoom;
-const anchorEvents = [];
-const scaleEvents = [];
-const sortedCam = cameraUpdates.slice().sort(function(a, b) { return a.t - b.t; });
-for (const u of sortedCam) {
-if (u.set.x !== undefined || u.set.y !== undefined) {
-const nx = u.set.x !== undefined ? u.set.x : curX;
-const ny = u.set.y !== undefined ? u.set.y : curY;
-anchorEvents.push({ t: u.t, dur: u.dur, ease: u.ease, val: Array.of(nx, ny, 0) });
-curX = nx;
-curY = ny;
+
+function resolveFontName(layer) {
+  return String(layer.font || 'Arial').trim() || 'Arial';
 }
-if (u.set.zoom !== undefined) {
-curZoom = u.set.zoom;
-const sc = curZoom * 100;
-scaleEvents.push({ t: u.t, dur: u.dur, ease: u.ease, val: Array.of(sc, sc, 100) });
-}
-}
-return {
-ddd: 0,
-ind: camInd,
-nm: 'CAMERA_RIG',
-ty: 3,
-sr: 1,
-ks: {
-o: { a: 0, k: 0 },
-r: { a: 0, k: 0 },
-p: { a: 0, k: Array.of(comp.width / 2, comp.height / 2, 0) },
-a: buildKeyframes(anchorEvents, Array.of(initX, initY, 0), fps, true),
-s: buildKeyframes(scaleEvents, Array.of(100, 100, 100), fps, true)
-},
-ao: 0,
-ip: 0,
-op: totalFrames,
-st: 0,
-bm: 0
-};
-}
+
 function compileToLottie(parsed) {
-const comp = parsed.comp;
-const layers = parsed.layers;
-const updates = parsed.updates;
-const cameraUpdates = parsed.cameraUpdates || [];
-const fps = comp.fps || 60;
-const totalFrames = Math.max(1, Math.round((comp.duration || 5) * fps));
-const lottieLayers = [];
-const usedFonts = new Set();
-const CAM_IND = 9999;
-let ind = 1;
-const layerList = Array.from(layers.values()).reverse();
-for (const layer of layerList) {
-const myUpdates = updates.filter(function(u) {
-return !u.targetIds || u.targetIds.includes(layer.id);
-});
-const posEvents = [];
-const scaleEvents = [];
-const rotEvents = [];
-const opEvents = [];
-const colorEvents = [];
-let curX = layer.x, curY = layer.y;
-let curScale = layer.scale;
-for (const u of myUpdates) {
-if (u.set.x !== undefined || u.set.y !== undefined) {
-const nx = u.set.x !== undefined ? u.set.x : curX;
-const ny = u.set.y !== undefined ? u.set.y : curY;
-posEvents.push({ t: u.t, dur: u.dur, ease: u.ease, val: Array.of(nx, ny, 0) });
-curX = nx; curY = ny;
-}
-if (u.set.scale !== undefined) {
-curScale = u.set.scale;
-scaleEvents.push({ t: u.t, dur: u.dur, ease: u.ease, val: Array.of(curScale, curScale, 100) });
-}
-if (u.set.rotation !== undefined) {
-rotEvents.push({ t: u.t, dur: u.dur, ease: u.ease, val: u.set.rotation });
-}
-if (u.set.opacity !== undefined) {
-opEvents.push({ t: u.t, dur: u.dur, ease: u.ease, val: u.set.opacity });
-}
-if (u.set.color !== undefined) {
-colorEvents.push({ t: u.t, dur: u.dur, ease: u.ease, val: hexToLottieColor(u.set.color) });
-}
-}
-const ks = {
-o: buildKeyframes(opEvents, layer.opacity, fps, false),
-r: buildKeyframes(rotEvents, layer.rotation, fps, false),
-p: buildKeyframes(posEvents, Array.of(layer.x, layer.y, 0), fps, true),
-a: { a: 0, k: Array.of(0, 0, 0) },
-s: buildKeyframes(scaleEvents, Array.of(layer.scale, layer.scale, 100), fps, true)
-};
-const baseLayer = {
-ddd: 0,
-ind: ind++,
-nm: layer.id,
-sr: 1,
-ks: ks,
-ao: 0,
-ip: 0,
-op: totalFrames,
-st: 0,
-bm: 0
-};
-if (!layer.fixed) {
-baseLayer.parent = CAM_IND;
-}
-if (layer.type === 'text') {
-const fontName = String(layer.font || 'Arial').trim() || 'Arial';
-usedFonts.add(fontName);
-lottieLayers.push(Object.assign({}, baseLayer, {
-ty: 5,
-t: {
-d: {
-k: Array.of({
-s: {
-s: layer.size || 24,
-f: fontName,
-t: String(layer.text || ''),
-j: 2,
-tr: 0,
-lh: (layer.size || 24) * 1.2,
-ls: 0,
-fc: hexToLottieColor(layer.color).slice(0, 3)
-},
-t: 0
-})
-},
-p: {},
-m: { g: 1, a: { a: 0, k: Array.of(0, 0) } },
-a: new Array()
-}
-}));
-} else {
-const shapeGeom = layer.type === 'ellipse'
-? {
-ty: 'el',
-d: 1,
-s: { a: 0, k: Array.of(layer.width, layer.height) },
-p: { a: 0, k: Array.of(0, 0) },
-nm: 'Ellipse'
-}
-: {
-ty: 'rc',
-d: 1,
-s: { a: 0, k: Array.of(layer.width, layer.height) },
-p: { a: 0, k: Array.of(0, 0) },
-r: { a: 0, k: layer.radius || 0 },
-nm: 'Rectangle'
-};
-const fillProp = {
-ty: 'fl',
-c: buildKeyframes(colorEvents, hexToLottieColor(layer.color), fps, true),
-o: { a: 0, k: 100 },
-r: 1,
-bm: 0,
-nm: 'Fill'
-};
-lottieLayers.push(Object.assign({}, baseLayer, {
-ty: 4,
-shapes: Array.of({
-ty: 'gr',
-it: Array.of(
-shapeGeom,
-fillProp,
-{
-ty: 'tr',
-p: { a: 0, k: Array.of(0, 0) },
-a: { a: 0, k: Array.of(0, 0) },
-s: { a: 0, k: Array.of(100, 100) },
-r: { a: 0, k: 0 },
-o: { a: 0, k: 100 }
-}
-),
-nm: 'Group'
-})
-}));
-}
-}
-lottieLayers.push(buildCameraRigLayer(comp, cameraUpdates, fps, totalFrames, CAM_IND));
-if (usedFonts.size === 0) usedFonts.add('Arial');
-const fontsList = Array.from(usedFonts).map(function(fName) {
-return {
-fName: fName,
-fFamily: fName,
-fStyle: 'Regular',
-ascent: 75
-};
-});
-return {
-v: '5.12.2',
-fr: fps,
-ip: 0,
-op: totalFrames,
-w: comp.width,
-h: comp.height,
-nm: 'LSL_Camera_Animation',
-ddd: 0,
-assets: new Array(),
-fonts: {
-list: fontsList
-},
-layers: lottieLayers
-};
+  const comp = parsed.comp;
+  const fps = comp.fps || 60;
+  const totalFrames = Math.max(1, Math.round((comp.duration || 5) * fps));
+  const CAM_IND = 9999;
+
+  // В Lottie слои рисуются сверху вниз по массиву, поэтому разворачиваем порядок вставки
+  const lottieLayers = [];
+  let ind = 1;
+  for (const layer of [...parsed.layers.values()].reverse()) {
+    const channels = collectLayerEvents(layer, parsed.updates);
+    const build = layer.type === 'text' ? createTextLayer : createShapeLayer;
+    lottieLayers.push(build(layer, channels, ind++, totalFrames, fps, CAM_IND));
+  }
+  lottieLayers.push(createCameraRig(comp, parsed.cameraUpdates, fps, totalFrames, CAM_IND));
+
+  const usedFonts = new Set();
+  for (const layer of parsed.layers.values()) {
+    if (layer.type === 'text') usedFonts.add(resolveFontName(layer));
+  }
+  if (!usedFonts.size) usedFonts.add('Arial');
+
+  return {
+    v: '5.12.2',
+    fr: fps,
+    ip: 0,
+    op: totalFrames,
+    w: comp.width,
+    h: comp.height,
+    nm: 'LSL_Camera_Animation',
+    ddd: 0,
+    assets: [],
+    fonts: {
+      list: [...usedFonts].map((fName) => ({
+        fName,
+        fFamily: fName,
+        fStyle: 'Regular',
+        ascent: 75,
+      })),
+    },
+    layers: lottieLayers,
+  };
 }
 
 /* ============================================================================
- * 4. ЗАГРУЗЧИК ШРИФТОВ (GOOGLE FONTS + BASE64 ДЛЯ ЭКСПОРТА В ВИДЕО)
- * ============================================================================ */
+ * 5. ЗАГРУЗЧИК ШРИФТОВ (Google Fonts + Base64 для экспорта в видео)
+ * ========================================================================== */
+
 const SYSTEM_FONTS = new Set([
   'arial', 'helvetica', 'times new roman', 'courier new',
   'georgia', 'verdana', 'tahoma', 'trebuchet ms', 'impact',
-  'sans-serif', 'serif', 'monospace', 'cursive', 'fantasy'
+  'sans-serif', 'serif', 'monospace', 'cursive', 'fantasy',
 ]);
+
 const fontCssCache = new Map();
 
-async function ensureFontsLoaded(fontsList) {
-  for (const fontObj of fontsList) {
-    const family = fontObj.fFamily;
-    if (!family || SYSTEM_FONTS.has(family.toLowerCase()) || fontCssCache.has(family)) {
-      continue;
-    }
+const blobToDataUrl = (blob) => new Promise((resolve) => {
+  const reader = new FileReader();
+  reader.onloadend = () => resolve(reader.result);
+  reader.readAsDataURL(blob);
+});
 
+/** Заменяет ссылки на файлы шрифтов в CSS на Base64 data-URL. */
+async function embedFontUrls(css) {
+  let embedded = css;
+  const urls = [...css.matchAll(/url\((https:\/\/[^)]+)\)/g)].map((m) => m[1]);
+  for (const fontUrl of urls) {
     try {
-      const formattedFamily = encodeURIComponent(family).replace(/%20/g, '+');
-      const url = 'https://fonts.googleapis.com/css?family=' + formattedFamily + '&display=swap';
-      const res = await fetch(url);
+      const res = await fetch(fontUrl);
       if (!res.ok) continue;
-      const rawCss = await res.text();
+      embedded = embedded.split(fontUrl).join(await blobToDataUrl(await res.blob()));
+    } catch (err) {
+      console.warn('Не удалось встроить файл шрифта:', fontUrl, err);
+    }
+  }
+  return embedded;
+}
 
-      // Оставляем только блоки для кириллицы и базовой латиницы
-      const blocks = rawCss.split('/*');
-      let filteredCss = '';
-      for (const block of blocks) {
-        if (!block.trim()) continue;
-        const fullBlock = '/*' + block;
-        if (fullBlock.includes('cyrillic */') || fullBlock.includes('latin */')) {
-          filteredCss += fullBlock + '\n';
-        }
-      }
-      if (!filteredCss) filteredCss = rawCss;
+async function loadGoogleFontCss(family) {
+  const url = 'https://fonts.googleapis.com/css?family='
+    + encodeURIComponent(family).replace(/%20/g, '+') + '&display=swap';
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
 
-      // Подключаем CSS на страницу для превью
+  const rawCss = await res.text();
+  // Оставляем только блоки для кириллицы и базовой латиницы
+  const filtered = rawCss
+    .split('/*')
+    .filter((block) => block.trim())
+    .map((block) => '/*' + block)
+    .filter((block) => block.includes('cyrillic */') || block.includes('latin */'))
+    .join('\n');
+
+  return embedFontUrls(filtered || rawCss);
+}
+
+async function ensureFontsLoaded(fontsList) {
+  for (const { fFamily: family } of fontsList) {
+    if (!family || SYSTEM_FONTS.has(family.toLowerCase()) || fontCssCache.has(family)) continue;
+    try {
+      const css = await loadGoogleFontCss(family);
+      fontCssCache.set(family, css);
+
       const styleTag = document.createElement('style');
       styleTag.setAttribute('data-lottie-font', family);
-      styleTag.textContent = filteredCss;
+      styleTag.textContent = css;
       document.head.appendChild(styleTag);
-
-      // Извлекаем чистый URL файла шрифта через .at(1) и конвертируем в Base64
-      const urlMatches = Array.from(filteredCss.matchAll(/url\((https:\/\/[^)]+)\)/g));
-      let embeddedCss = filteredCss;
-
-      for (const m of urlMatches) {
-        const fontFileUrl = m.at(1);
-        if (!fontFileUrl) continue;
-        try {
-          const fontRes = await fetch(fontFileUrl);
-          if (!fontRes.ok) continue;
-          const blob = await fontRes.blob();
-          const dataUrl = await new Promise(function(resolve) {
-            const reader = new FileReader();
-            reader.onloadend = function() { resolve(reader.result); };
-            reader.readAsDataURL(blob);
-          });
-          embeddedCss = embeddedCss.split(fontFileUrl).join(dataUrl);
-        } catch (innerErr) {
-          console.warn('Не удалось встроить файл шрифта:', fontFileUrl, innerErr);
-        }
-      }
-
-      fontCssCache.set(family, embeddedCss);
 
       if (document.fonts && document.fonts.load) {
         await document.fonts.load('16px "' + family + '"');
       }
-    } catch (e) {
-      console.warn('Шрифт не найден в Google Fonts (будет использован системный):', family, e);
+    } catch (err) {
+      console.warn('Шрифт не найден в Google Fonts (будет использован системный):', family, err);
     }
   }
 }
 
-
 /* ============================================================================
-• 
-	5. UI, ПЛЕЕР И ЭКСПОРТ
-• ============================================================================ */
+ * 6. UI, ПЛЕЕР И ЭКСПОРТ
+ * ========================================================================== */
+
 const STORAGE_KEY = 'lsl_lottie_studio:dsl';
-const editor = document.getElementById('dsl-editor');
-const errorBox = document.getElementById('error-box');
-const lottieBox = document.getElementById('lottie-box');
-const stageWrap = document.getElementById('stage-wrap');
-const rawJsonView = document.getElementById('raw-json-view');
-const scrubber = document.getElementById('scrubber');
-const timecode = document.getElementById('timecode');
-const btnPlay = document.getElementById('btn-play');
-const recBadge = document.getElementById('rec-badge');
-let anim = null;
-let currentLottieData = null;
-let isPlaying = true;
-let isExporting = false;
-editor.value = localStorage.getItem(STORAGE_KEY) || DEFAULT_DSL;
-function fitStageBox(w, h) {
-const wrapRect = stageWrap.getBoundingClientRect();
-const maxW = Math.max(120, wrapRect.width - 40);
-const maxH = Math.max(120, wrapRect.height - 40);
-const scale = Math.min(maxW / w, maxH / h, 1);
-lottieBox.style.width = Math.round(w * scale) + 'px';
-lottieBox.style.height = Math.round(h * scale) + 'px';
-}
-window.addEventListener('resize', function() {
-if (currentLottieData) fitStageBox(currentLottieData.w, currentLottieData.h);
-});
-function updateTimeUI() {
-if (!anim || !currentLottieData) return;
-const frame = anim.currentFrame;
-const total = anim.totalFrames;
-const fps = currentLottieData.fr;
-scrubber.value = Math.round(frame);
-timecode.textContent = (frame / fps).toFixed(2) + ' / ' + (total / fps).toFixed(2) + 's';
-}
-async function compileAndRun() {
-try {
-if (typeof lottie === 'undefined') {
-throw new Error('Библиотека lottie-web не загружена. Проверьте подключение к CDN.');
-}
-const parsed = parseDSL(editor.value);
-const compiled = compileToLottie(parsed);
-// Подгружаем шрифты до инициализации плеера
-await ensureFontsLoaded(compiled.fonts.list);
-currentLottieData = compiled;
-localStorage.setItem(STORAGE_KEY, editor.value);
-errorBox.classList.remove('visible');
-errorBox.textContent = '';
-rawJsonView.textContent = JSON.stringify(currentLottieData, null, 2);
-if (anim) anim.destroy();
-lottieBox.innerHTML = '';
-fitStageBox(currentLottieData.w, currentLottieData.h);
-anim = lottie.loadAnimation({
-container: lottieBox,
-renderer: 'svg',
-loop: true,
-autoplay: true,
-animationData: JSON.parse(JSON.stringify(currentLottieData)),
-rendererSettings: {
-preserveAspectRatio: 'xMidYMid meet',
-progressiveLoad: false
-}
-});
-isPlaying = true;
-btnPlay.textContent = '⏸ Пауза';
-scrubber.max = Math.max(1, currentLottieData.op - 1);
-anim.addEventListener('enterFrame', updateTimeUI);
-} catch (err) {
-errorBox.textContent = 'Ошибка компиляции: ' + err.message;
-errorBox.classList.add('visible');
-}
-}
-const tabPreview = document.getElementById('tab-preview');
-const tabRaw = document.getElementById('tab-raw');
-tabPreview.addEventListener('click', function() {
-tabPreview.classList.add('active');
-tabRaw.classList.remove('active');
-stageWrap.style.display = 'flex';
-rawJsonView.style.display = 'none';
-});
-tabRaw.addEventListener('click', function() {
-tabRaw.classList.add('active');
-tabPreview.classList.remove('active');
-stageWrap.style.display = 'none';
-rawJsonView.style.display = 'block';
-});
-btnPlay.addEventListener('click', function() {
-if (!anim || isExporting) return;
-if (isPlaying) {
-anim.pause();
-isPlaying = false;
-btnPlay.textContent = '▶ Старт';
-} else {
-anim.play();
-isPlaying = true;
-btnPlay.textContent = '⏸ Пауза';
-}
-});
-scrubber.addEventListener('input', function() {
-if (!anim || isExporting) return;
-anim.pause();
-isPlaying = false;
-btnPlay.textContent = '▶ Старт';
-anim.goToAndStop(Number(scrubber.value), true);
-updateTimeUI();
-});
-function downloadBlob(blob, filename) {
-const a = document.createElement('a');
-a.href = URL.createObjectURL(blob);
-a.download = filename;
-document.body.appendChild(a);
-a.click();
-setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
-}
-document.getElementById('btn-compile').addEventListener('click', compileAndRun);
-document.getElementById('btn-save-dsl').addEventListener('click', function() {
-downloadBlob(new Blob(Array.of(editor.value), { type: 'text/plain;charset=utf-8' }), 'animation.lsl');
-});
-document.getElementById('btn-load-dsl').addEventListener('click', function() {
-document.getElementById('file-dsl').click();
-});
-document.getElementById('file-dsl').addEventListener('change', function(e) {
-const file = e.target.files.item(0);
-if (!file) return;
-const reader = new FileReader();
-reader.onload = function(ev) {
-editor.value = ev.target.result;
-compileAndRun();
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+const els = {
+  editor: document.getElementById('dsl-editor'),
+  errorBox: document.getElementById('error-box'),
+  lottieBox: document.getElementById('lottie-box'),
+  stageWrap: document.getElementById('stage-wrap'),
+  rawJson: document.getElementById('raw-json-view'),
+  scrubber: document.getElementById('scrubber'),
+  timecode: document.getElementById('timecode'),
+  btnCompile: document.getElementById('btn-compile'),
+  btnPlay: document.getElementById('btn-play'),
+  btnSaveDsl: document.getElementById('btn-save-dsl'),
+  btnLoadDsl: document.getElementById('btn-load-dsl'),
+  fileDsl: document.getElementById('file-dsl'),
+  btnResetDsl: document.getElementById('btn-reset-dsl'),
+  btnSaveLottie: document.getElementById('btn-save-lottie'),
+  btnExport: document.getElementById('btn-export-video'),
+  tabPreview: document.getElementById('tab-preview'),
+  tabRaw: document.getElementById('tab-raw'),
+  recBadge: document.getElementById('rec-badge'),
 };
-reader.readAsText(file);
-e.target.value = '';
-});
-document.getElementById('btn-reset-dsl').addEventListener('click', function() {
-editor.value = DEFAULT_DSL;
-compileAndRun();
-});
-document.getElementById('btn-save-lottie').addEventListener('click', function() {
-if (!currentLottieData) return;
-const json = JSON.stringify(currentLottieData, null, 2);
-downloadBlob(new Blob(Array.of(json), { type: 'application/json' }), 'animation.lottie.json');
-});
-editor.addEventListener('keydown', function(e) {
-if (e.code === 'Enter' && (e.ctrlKey || e.metaKey)) {
-e.preventDefault();
-compileAndRun();
+
+const state = {
+  anim: null,
+  lottieData: null,
+  isPlaying: true,
+  isExporting: false,
+};
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function showError(message) {
+  els.errorBox.textContent = message;
+  els.errorBox.classList.add('visible');
 }
-});
 
-/* ============================================================================
- * 6. ПЛАВНЫЙ ПОКАДРОВЫЙ ЭКСПОРТ ВИДЕО (CAPTURE STREAM 0 + BASE64 ШРИФТЫ)
- * ============================================================================ */
-document.getElementById('btn-export-video').addEventListener('click', async function() {
-  if (!currentLottieData || !anim || isExporting) return;
+function hideError() {
+  els.errorBox.textContent = '';
+  els.errorBox.classList.remove('visible');
+}
 
-  const mimeCandidates = Array.of(
+function fitStageBox(w, h) {
+  const rect = els.stageWrap.getBoundingClientRect();
+  const scale = Math.min(Math.max(120, rect.width - 40) / w, Math.max(120, rect.height - 40) / h, 1);
+  els.lottieBox.style.width = Math.round(w * scale) + 'px';
+  els.lottieBox.style.height = Math.round(h * scale) + 'px';
+}
+
+function updateTimeUI() {
+  if (!state.anim || !state.lottieData) return;
+  const { currentFrame: frame, totalFrames } = state.anim;
+  const fps = state.lottieData.fr;
+  els.scrubber.value = Math.round(frame);
+  els.timecode.textContent = (frame / fps).toFixed(2) + ' / ' + (totalFrames / fps).toFixed(2) + 's';
+}
+
+function pausePlayback() {
+  if (!state.anim) return;
+  state.anim.pause();
+  state.isPlaying = false;
+  els.btnPlay.textContent = '▶ Старт';
+}
+
+function resumePlayback() {
+  if (!state.anim) return;
+  state.anim.play();
+  state.isPlaying = true;
+  els.btnPlay.textContent = '⏸ Пауза';
+}
+
+async function compileAndRun() {
+  if (typeof lottie === 'undefined') {
+    showError('Библиотека lottie-web не загружена. Проверьте подключение к CDN.');
+    return;
+  }
+  try {
+    const compiled = compileToLottie(parseDSL(els.editor.value));
+
+    // Шрифты подгружаем до инициализации плеера
+    await ensureFontsLoaded(compiled.fonts.list);
+
+    state.lottieData = compiled;
+    localStorage.setItem(STORAGE_KEY, els.editor.value);
+    hideError();
+    els.rawJson.textContent = JSON.stringify(compiled, null, 2);
+
+    if (state.anim) state.anim.destroy();
+    els.lottieBox.innerHTML = '';
+    fitStageBox(compiled.w, compiled.h);
+
+    state.anim = lottie.loadAnimation({
+      container: els.lottieBox,
+      renderer: 'svg',
+      loop: true,
+      autoplay: true,
+      animationData: JSON.parse(JSON.stringify(compiled)),
+      rendererSettings: {
+        preserveAspectRatio: 'xMidYMid meet',
+        progressiveLoad: false,
+      },
+    });
+    state.isPlaying = true;
+    els.btnPlay.textContent = '⏸ Пауза';
+    els.scrubber.max = Math.max(1, compiled.op - 1);
+    state.anim.addEventListener('enterFrame', updateTimeUI);
+  } catch (err) {
+    showError('Ошибка компиляции: ' + err.message);
+  }
+}
+
+function downloadBlob(blob, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+
+/** Рисует текущий SVG-кадр плеера на offscreen-canvas. */
+function renderSvgFrameToCanvas(ctx, width, height, fontDefs) {
+  return new Promise((resolve) => {
+    const svgEl = els.lottieBox.querySelector('svg');
+    if (!svgEl) { resolve(); return; }
+
+    const clone = svgEl.cloneNode(true);
+    clone.setAttribute('xmlns', SVG_NS);
+    clone.setAttribute('width', width);
+    clone.setAttribute('height', height);
+    if (fontDefs) clone.insertBefore(fontDefs.cloneNode(true), clone.firstChild);
+
+    const svgBlob = new Blob(
+      [new XMLSerializer().serializeToString(clone)],
+      { type: 'image/svg+xml;charset=utf-8' }
+    );
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+    img.src = url;
+  });
+}
+
+function pickRecorderMime() {
+  if (!window.MediaRecorder) return null;
+  const candidates = [
     'video/mp4;codecs="avc1.42E01E"',
     'video/mp4',
     'video/webm;codecs=vp9',
     'video/webm;codecs=vp8',
-    'video/webm'
-  );
-  const mime = mimeCandidates.find(function(m) {
-    return window.MediaRecorder && MediaRecorder.isTypeSupported(m);
-  });
+    'video/webm',
+  ];
+  return candidates.find((m) => MediaRecorder.isTypeSupported(m)) || null;
+}
+
+/** Плавный покадровый экспорт: captureStream(0) + Base64-шрифты в SVG. */
+async function exportVideo() {
+  if (!state.lottieData || !state.anim || state.isExporting) return;
+
+  const mime = pickRecorderMime();
   if (!mime) {
     alert('Ваш браузер не поддерживает MediaRecorder для записи видео.');
     return;
   }
 
-  tabPreview.click();
+  els.tabPreview.click();
+  state.isExporting = true;
+  pausePlayback();
+  els.recBadge.classList.add('on');
+  els.btnExport.disabled = true;
 
-  isExporting = true;
-  anim.pause();
-  isPlaying = false;
-  btnPlay.textContent = '▶ Старт';
-  recBadge.classList.add('on');
-  document.getElementById('btn-export-video').disabled = true;
-
-  const w = currentLottieData.w;
-  const h = currentLottieData.h;
-  const fps = currentLottieData.fr;
-  const totalFrames = currentLottieData.op;
-
+  const { w, h, fr: fps, op: totalFrames } = state.lottieData;
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
-  const serializer = new XMLSerializer();
-  const SVG_NS = 'http://w3.org';
 
-  let cachedDefs = null;
+  // Шрифты встраиваются в SVG-кадры как Base64, иначе при рендере пропадут
+  let fontDefs = null;
   if (fontCssCache.size > 0) {
-    cachedDefs = document.createElementNS(SVG_NS, 'defs');
+    fontDefs = document.createElementNS(SVG_NS, 'defs');
     const style = document.createElementNS(SVG_NS, 'style');
     style.setAttribute('type', 'text/css');
-    style.textContent = Array.from(fontCssCache.values()).join('\n');
-    cachedDefs.appendChild(style);
-  }
-
-  function drawSvgFrameToCanvas() {
-    return new Promise(function(resolve) {
-      const svgEl = lottieBox.querySelector('svg');
-      if (!svgEl) { resolve(); return; }
-
-      const clone = svgEl.cloneNode(true);
-      clone.setAttribute('xmlns', SVG_NS);
-      clone.setAttribute('width', w);
-      clone.setAttribute('height', h);
-
-      if (cachedDefs) {
-        clone.insertBefore(cachedDefs.cloneNode(true), clone.firstChild);
-      }
-
-      const svgStr = serializer.serializeToString(clone);
-      const svgBlob = new Blob(Array.of(svgStr), { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
-
-      const img = new Image();
-      img.onload = function() {
-        ctx.clearRect(0, 0, w, h);
-        ctx.drawImage(img, 0, 0, w, h);
-        URL.revokeObjectURL(url);
-        resolve();
-      };
-      img.onerror = function() {
-        URL.revokeObjectURL(url);
-        resolve();
-      };
-      img.src = url;
-    });
+    style.textContent = [...fontCssCache.values()].join('\n');
+    fontDefs.appendChild(style);
   }
 
   const stream = canvas.captureStream(0);
-  const videoTrack = stream.getVideoTracks().at(0);
-
-  const recorder = new MediaRecorder(stream, {
-    mimeType: mime,
-    videoBitsPerSecond: 8000000
-  });
-
+  const track = stream.getVideoTracks()[0];
+  const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8000000 });
   const chunks = [];
-  recorder.ondataavailable = function(e) {
-    if (e.data && e.data.size > 0) chunks.push(e.data);
-  };
-
-  const donePromise = new Promise(function(resolve) {
-    recorder.onstop = resolve;
-  });
-
+  recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+  const stopped = new Promise((resolve) => { recorder.onstop = resolve; });
   recorder.start();
 
   const frameDelay = 1000 / fps;
   for (let f = 0; f < totalFrames; f++) {
     const t0 = performance.now();
-    anim.goToAndStop(f, true);
-    await drawSvgFrameToCanvas();
+    state.anim.goToAndStop(f, true);
+    await renderSvgFrameToCanvas(ctx, w, h, fontDefs);
+    if (track && typeof track.requestFrame === 'function') track.requestFrame();
 
-    if (videoTrack && typeof videoTrack.requestFrame === 'function') {
-      videoTrack.requestFrame();
-    }
+    els.scrubber.value = f;
+    els.timecode.textContent = (f / fps).toFixed(2) + ' / ' + (totalFrames / fps).toFixed(2) + 's';
 
-    scrubber.value = f;
-    timecode.textContent = (f / fps).toFixed(2) + ' / ' + (totalFrames / fps).toFixed(2) + 's';
-
-    const elapsed = performance.now() - t0;
-    const wait = Math.max(0, frameDelay - elapsed);
-    if (wait > 0) {
-      await new Promise(function(r) { setTimeout(r, wait); });
-    }
+    await sleep(Math.max(0, frameDelay - (performance.now() - t0)));
   }
 
-  await new Promise(function(r) { setTimeout(r, 150); });
+  await sleep(150);
   recorder.stop();
-  await donePromise;
+  await stopped;
 
   const ext = mime.includes('mp4') ? 'mp4' : 'webm';
-  const blob = new Blob(chunks, { type: mime });
-  downloadBlob(blob, 'lottie_export.' + ext);
+  downloadBlob(new Blob(chunks, { type: mime }), 'lottie_export.' + ext);
 
-  isExporting = false;
-  recBadge.classList.remove('on');
-  document.getElementById('btn-export-video').disabled = false;
-  anim.play();
-  isPlaying = true;
-  btnPlay.textContent = '⏸ Пауза';
+  state.isExporting = false;
+  els.recBadge.classList.remove('on');
+  els.btnExport.disabled = false;
+  resumePlayback();
+}
+
+/* ---------- Привязка событий ---------- */
+
+els.btnCompile.addEventListener('click', compileAndRun);
+
+els.btnSaveDsl.addEventListener('click', () => {
+  downloadBlob(new Blob([els.editor.value], { type: 'text/plain;charset=utf-8' }), 'animation.lsl');
 });
 
-compileAndRun();
+els.btnLoadDsl.addEventListener('click', () => els.fileDsl.click());
 
+els.fileDsl.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    els.editor.value = ev.target.result;
+    compileAndRun();
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+els.btnResetDsl.addEventListener('click', () => {
+  els.editor.value = DEFAULT_DSL;
+  compileAndRun();
+});
+
+els.btnSaveLottie.addEventListener('click', () => {
+  if (!state.lottieData) return;
+  const json = JSON.stringify(state.lottieData, null, 2);
+  downloadBlob(new Blob([json], { type: 'application/json' }), 'animation.lottie.json');
+});
+
+els.btnPlay.addEventListener('click', () => {
+  if (!state.anim || state.isExporting) return;
+  state.isPlaying ? pausePlayback() : resumePlayback();
+});
+
+els.scrubber.addEventListener('input', () => {
+  if (!state.anim || state.isExporting) return;
+  pausePlayback();
+  state.anim.goToAndStop(Number(els.scrubber.value), true);
+  updateTimeUI();
+});
+
+els.tabPreview.addEventListener('click', () => {
+  els.tabPreview.classList.add('active');
+  els.tabRaw.classList.remove('active');
+  els.stageWrap.style.display = 'flex';
+  els.rawJson.style.display = 'none';
+});
+
+els.tabRaw.addEventListener('click', () => {
+  els.tabRaw.classList.add('active');
+  els.tabPreview.classList.remove('active');
+  els.stageWrap.style.display = 'none';
+  els.rawJson.style.display = 'block';
+});
+
+els.btnExport.addEventListener('click', exportVideo);
+
+els.editor.addEventListener('keydown', (e) => {
+  if (e.code === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    compileAndRun();
+  }
+});
+
+window.addEventListener('resize', () => {
+  if (state.lottieData) fitStageBox(state.lottieData.w, state.lottieData.h);
+});
+
+els.editor.value = localStorage.getItem(STORAGE_KEY) || DEFAULT_DSL;
+compileAndRun();
 </script>
 </body>
 </html>
