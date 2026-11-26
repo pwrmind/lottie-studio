@@ -231,15 +231,15 @@
 <body>
 
 <div class="workspace">
-  <!-- ================= ЛЕВАЯ ПАНЕЛЬ: SQL-DSL ================= -->
+  <!-- ================= ЛЕВАЯ ПАНЕЛЬ: LSL-DSL ================= -->
   <section class="panel">
     <div class="toolbar">
-      <span class="toolbar-title">SQL-DSL Сценарий</span>
+      <span class="toolbar-title">LSL Сценарий</span>
       <button class="primary" id="btn-compile" title="Ctrl + Enter">▶ Собрать</button>
-      <button id="btn-save-dsl" title="Скачать файл .sql">💾 Сохранить DSL</button>
+      <button id="btn-save-dsl" title="Скачать файл .lsl">💾 Сохранить DSL</button>
       <button id="btn-load-dsl" title="Загрузить скрипт">📂 Открыть</button>
       <button id="btn-reset-dsl" title="Вернуть демо-пример">↺ Пример</button>
-      <input type="file" id="file-dsl" accept=".sql,.txt" style="display:none">
+      <input type="file" id="file-dsl" accept=".lsl,.txt" style="display:none">
     </div>
     <textarea class="code-area" id="dsl-editor" spellcheck="false"></textarea>
     <div class="error-banner" id="error-box"></div>
@@ -322,7 +322,7 @@ const DEFAULT_DSL = [
 ].join('\n');
 
 /* ============================================================================
- * 2. ПАРСЕР SQL-DSL (С ПОДДЕРЖКОЙ UPDATE camera И ПОЛЯ font)
+ * 2. ПАРСЕР LSL (С ПОДДЕРЖКОЙ UPDATE camera И ПОЛЯ font)
  * ============================================================================ */
 function splitTopLevel(str, sep) {
   sep = sep || ',';
@@ -372,8 +372,8 @@ function parseAssignments(str) {
   return obj;
 }
 
-function parseDSL(sqlText) {
-  const cleaned = sqlText
+function parseDSL(lslText) {
+  const cleaned = lslText
     .split('\n')
     .map(function(line) {
       let inStr = false, q = '';
@@ -491,7 +491,7 @@ function parseDSL(sqlText) {
       continue;
     }
 
-    throw new Error('Неизвестная инструкция SQL: ' + stmt.slice(0, 60));
+    throw new Error('Неизвестная инструкция LSL: ' + stmt.slice(0, 60));
   }
 
   return { comp: comp, layers: layers, updates: updates, cameraUpdates: cameraUpdates };
@@ -783,7 +783,7 @@ ip: 0,
 op: totalFrames,
 w: comp.width,
 h: comp.height,
-nm: 'SQL_DSL_Camera_Animation',
+nm: 'LSL_Camera_Animation',
 ddd: 0,
 assets: new Array(),
 fonts: {
@@ -860,7 +860,7 @@ async function ensureFontsLoaded(fontsList) {
 • 
 	5. UI, ПЛЕЕР И ЭКСПОРТ
 • ============================================================================ */
-const STORAGE_KEY = 'sql_lottie_studio:dsl';
+const STORAGE_KEY = 'lsl_lottie_studio:dsl';
 const editor = document.getElementById('dsl-editor');
 const errorBox = document.getElementById('error-box');
 const lottieBox = document.getElementById('lottie-box');
@@ -975,7 +975,7 @@ setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
 }
 document.getElementById('btn-compile').addEventListener('click', compileAndRun);
 document.getElementById('btn-save-dsl').addEventListener('click', function() {
-downloadBlob(new Blob(Array.of(editor.value), { type: 'text/plain;charset=utf-8' }), 'animation.sql');
+downloadBlob(new Blob(Array.of(editor.value), { type: 'text/plain;charset=utf-8' }), 'animation.lsl');
 });
 document.getElementById('btn-load-dsl').addEventListener('click', function() {
 document.getElementById('file-dsl').click();
