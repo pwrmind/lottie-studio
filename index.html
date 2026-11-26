@@ -792,14 +792,14 @@ list: fontsList
 layers: lottieLayers
 };
 }
+
 /* ============================================================================
-• 
-	4. ЗАГРУЗЧИК ШРИФТОВ (GOOGLE FONTS + BASE64 ДЛЯ ЭКСПОРТА В ВИДЕО)
-• ============================================================================ */
+ * 4. ЗАГРУЗЧИК ШРИФТОВ (GOOGLE FONTS + BASE64 ДЛЯ ЭКСПОРТА В ВИДЕО)
+ * ============================================================================ */
 const SYSTEM_FONTS = new Set([
-'arial', 'helvetica', 'times new roman', 'courier new',
-'georgia', 'verdana', 'tahoma', 'trebuchet ms', 'impact',
-'sans-serif', 'serif', 'monospace', 'cursive', 'fantasy'
+  'arial', 'helvetica', 'times new roman', 'courier new',
+  'georgia', 'verdana', 'tahoma', 'trebuchet ms', 'impact',
+  'sans-serif', 'serif', 'monospace', 'cursive', 'fantasy'
 ]);
 const fontCssCache = new Map();
 
@@ -815,20 +815,33 @@ async function ensureFontsLoaded(fontsList) {
       const url = 'https://fonts.googleapis.com/css?family=' + formattedFamily + '&display=swap';
       const res = await fetch(url);
       if (!res.ok) continue;
-      let cssText = await res.text();
+      const rawCss = await res.text();
+
+      // Оставляем только блоки для кириллицы и базовой латиницы
+      const blocks = rawCss.split('/*');
+      let filteredCss = '';
+      for (const block of blocks) {
+        if (!block.trim()) continue;
+        const fullBlock = '/*' + block;
+        if (fullBlock.includes('cyrillic */') || fullBlock.includes('latin */')) {
+          filteredCss += fullBlock + '\n';
+        }
+      }
+      if (!filteredCss) filteredCss = rawCss;
 
       // Подключаем CSS на страницу для превью
       const styleTag = document.createElement('style');
       styleTag.setAttribute('data-lottie-font', family);
-      styleTag.textContent = cssText;
+      styleTag.textContent = filteredCss;
       document.head.appendChild(styleTag);
 
-      // Заменяем все внешние url(...) в CSS на Base64 data-URL для рендера в Canvas/Video
-      const urlMatches = Array.from(cssText.matchAll(/url\((https:\/\/[^)]+)\)/g));
-      let embeddedCss = cssText;
+      // Извлекаем чистый URL файла шрифта через .at(1) и конвертируем в Base64
+      const urlMatches = Array.from(filteredCss.matchAll(/url\((https:\/\/[^)]+)\)/g));
+      let embeddedCss = filteredCss;
 
       for (const m of urlMatches) {
-        const fontFileUrl = m[1];
+        const fontFileUrl = m.at(1);
+        if (!fontFileUrl) continue;
         try {
           const fontRes = await fetch(fontFileUrl);
           if (!fontRes.ok) continue;
@@ -846,7 +859,6 @@ async function ensureFontsLoaded(fontsList) {
 
       fontCssCache.set(family, embeddedCss);
 
-      // Ждём фактической готовности шрифта в браузере
       if (document.fonts && document.fonts.load) {
         await document.fonts.load('16px "' + family + '"');
       }
@@ -855,6 +867,7 @@ async function ensureFontsLoaded(fontsList) {
     }
   }
 }
+
 
 /* ============================================================================
 • 
@@ -1006,105 +1019,146 @@ e.preventDefault();
 compileAndRun();
 }
 });
+
 /* ============================================================================
-• 
-	6. ЭКСПОРТ ВИДЕО НАПРЯМУЮ ИЗ SVG-РЕНДЕРА (С ВШИТЫМИ ШРИФТАМИ)
-• ============================================================================ */
+ * 6. ПЛАВНЫЙ ПОКАДРОВЫЙ ЭКСПОРТ ВИДЕО (CAPTURE STREAM 0 + BASE64 ШРИФТЫ)
+ * ============================================================================ */
 document.getElementById('btn-export-video').addEventListener('click', async function() {
-if (!currentLottieData || !anim || isExporting) return;
-const mimeCandidates = Array.of(
-'video/mp4;codecs="avc1.42E01E"',
-'video/mp4',
-'video/webm;codecs=vp8',
-'video/webm'
-);
-const mime = mimeCandidates.find(function(m) {
-return window.MediaRecorder && MediaRecorder.isTypeSupported(m);
+  if (!currentLottieData || !anim || isExporting) return;
+
+  const mimeCandidates = Array.of(
+    'video/mp4;codecs="avc1.42E01E"',
+    'video/mp4',
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm'
+  );
+  const mime = mimeCandidates.find(function(m) {
+    return window.MediaRecorder && MediaRecorder.isTypeSupported(m);
+  });
+  if (!mime) {
+    alert('Ваш браузер не поддерживает MediaRecorder для записи видео.');
+    return;
+  }
+
+  tabPreview.click();
+
+  isExporting = true;
+  anim.pause();
+  isPlaying = false;
+  btnPlay.textContent = '▶ Старт';
+  recBadge.classList.add('on');
+  document.getElementById('btn-export-video').disabled = true;
+
+  const w = currentLottieData.w;
+  const h = currentLottieData.h;
+  const fps = currentLottieData.fr;
+  const totalFrames = currentLottieData.op;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const serializer = new XMLSerializer();
+  const SVG_NS = 'http://w3.org';
+
+  let cachedDefs = null;
+  if (fontCssCache.size > 0) {
+    cachedDefs = document.createElementNS(SVG_NS, 'defs');
+    const style = document.createElementNS(SVG_NS, 'style');
+    style.setAttribute('type', 'text/css');
+    style.textContent = Array.from(fontCssCache.values()).join('\n');
+    cachedDefs.appendChild(style);
+  }
+
+  function drawSvgFrameToCanvas() {
+    return new Promise(function(resolve) {
+      const svgEl = lottieBox.querySelector('svg');
+      if (!svgEl) { resolve(); return; }
+
+      const clone = svgEl.cloneNode(true);
+      clone.setAttribute('xmlns', SVG_NS);
+      clone.setAttribute('width', w);
+      clone.setAttribute('height', h);
+
+      if (cachedDefs) {
+        clone.insertBefore(cachedDefs.cloneNode(true), clone.firstChild);
+      }
+
+      const svgStr = serializer.serializeToString(clone);
+      const svgBlob = new Blob(Array.of(svgStr), { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      const img = new Image();
+      img.onload = function() {
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      img.onerror = function() {
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      img.src = url;
+    });
+  }
+
+  const stream = canvas.captureStream(0);
+  const videoTrack = stream.getVideoTracks().at(0);
+
+  const recorder = new MediaRecorder(stream, {
+    mimeType: mime,
+    videoBitsPerSecond: 8000000
+  });
+
+  const chunks = [];
+  recorder.ondataavailable = function(e) {
+    if (e.data && e.data.size > 0) chunks.push(e.data);
+  };
+
+  const donePromise = new Promise(function(resolve) {
+    recorder.onstop = resolve;
+  });
+
+  recorder.start();
+
+  const frameDelay = 1000 / fps;
+  for (let f = 0; f < totalFrames; f++) {
+    const t0 = performance.now();
+    anim.goToAndStop(f, true);
+    await drawSvgFrameToCanvas();
+
+    if (videoTrack && typeof videoTrack.requestFrame === 'function') {
+      videoTrack.requestFrame();
+    }
+
+    scrubber.value = f;
+    timecode.textContent = (f / fps).toFixed(2) + ' / ' + (totalFrames / fps).toFixed(2) + 's';
+
+    const elapsed = performance.now() - t0;
+    const wait = Math.max(0, frameDelay - elapsed);
+    if (wait > 0) {
+      await new Promise(function(r) { setTimeout(r, wait); });
+    }
+  }
+
+  await new Promise(function(r) { setTimeout(r, 150); });
+  recorder.stop();
+  await donePromise;
+
+  const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+  const blob = new Blob(chunks, { type: mime });
+  downloadBlob(blob, 'lottie_export.' + ext);
+
+  isExporting = false;
+  recBadge.classList.remove('on');
+  document.getElementById('btn-export-video').disabled = false;
+  anim.play();
+  isPlaying = true;
+  btnPlay.textContent = '⏸ Пауза';
 });
-if (!mime) {
-alert('Ваш браузер не поддерживает MediaRecorder для записи видео.');
-return;
-}
-tabPreview.click();
-isExporting = true;
-anim.pause();
-isPlaying = false;
-btnPlay.textContent = '▶ Старт';
-recBadge.classList.add('on');
-document.getElementById('btn-export-video').disabled = true;
-const w = currentLottieData.w;
-const h = currentLottieData.h;
-const fps = currentLottieData.fr;
-const totalFrames = currentLottieData.op;
-const canvas = document.createElement('canvas');
-canvas.width = w;
-canvas.height = h;
-const ctx = canvas.getContext('2d');
-const serializer = new XMLSerializer();
-function drawSvgFrameToCanvas() {
-return new Promise(function(resolve) {
-const svgEl = lottieBox.querySelector('svg');
-if (!svgEl) { resolve(); return; }
-const clone = svgEl.cloneNode(true);
-clone.setAttribute('xmlns', 'w3.org');
-clone.setAttribute('width', w);
-clone.setAttribute('height', h);
-// Вшиваем Base64-шрифты внутрь SVG, чтобы браузер не сбрасывал их при растеризации
-if (fontCssCache.size > 0) {
-const defs = document.createElementNS('w3.org', 'defs');
-const style = document.createElementNS('w3.org', 'style');
-style.textContent = Array.from(fontCssCache.values()).join('\n');
-defs.appendChild(style);
-clone.insertBefore(defs, clone.firstChild);
-}
-const svgStr = serializer.serializeToString(clone);
-const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
-const img = new Image();
-img.onload = function() {
-ctx.clearRect(0, 0, w, h);
-ctx.drawImage(img, 0, 0, w, h);
-resolve();
-};
-img.onerror = function() { resolve(); };
-img.src = url;
-});
-}
-anim.goToAndStop(0, true);
-await drawSvgFrameToCanvas();
-const stream = canvas.captureStream(fps);
-const recorder = new MediaRecorder(stream, {
-mimeType: mime,
-videoBitsPerSecond: 8000000
-});
-const chunks = [];
-recorder.ondataavailable = function(e) {
-if (e.data && e.data.size > 0) chunks.push(e.data);
-};
-const donePromise = new Promise(function(resolve) {
-recorder.onstop = resolve;
-});
-recorder.start(100);
-const frameDelay = 1000 / fps;
-for (let f = 0; f < totalFrames; f++) {
-anim.goToAndStop(f, true);
-await drawSvgFrameToCanvas();
-scrubber.value = f;
-timecode.textContent = (f / fps).toFixed(2) + ' / ' + (totalFrames / fps).toFixed(2) + 's';
-await new Promise(function(r) { setTimeout(r, frameDelay); });
-}
-await new Promise(function(r) { setTimeout(r, 150); });
-recorder.stop();
-await donePromise;
-const ext = mime.includes('mp4') ? 'mp4' : 'webm';
-const blob = new Blob(chunks, { type: mime });
-downloadBlob(blob, 'lottie_export.' + ext);
-isExporting = false;
-recBadge.classList.remove('on');
-document.getElementById('btn-export-video').disabled = false;
-anim.play();
-isPlaying = true;
-btnPlay.textContent = '⏸ Пауза';
-});
+
 compileAndRun();
 
 </script>
