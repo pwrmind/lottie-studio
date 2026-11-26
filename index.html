@@ -54,5 +54,143 @@
     </div>
 
     <script src="./assets/js/main.js"></script>
+    <style>
+  .lsl-highlight-wrap {
+    position: relative;
+    display: flex;
+    width: 100%;
+    height: 100%;
+  }
+  .lsl-highlight-layer,
+  .lsl-highlight-wrap textarea {
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+    letter-spacing: normal !important;
+    tab-size: 2 !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow: auto !important;
+  }
+  .lsl-highlight-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    color: #e6edf3;        /* Базовый цвет текста (под тёмную тему студий) */
+    background: #0d1117;   /* Фон редактора */
+    z-index: 0;
+  }
+  .lsl-highlight-wrap textarea {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    color: transparent !important;
+    background: transparent !important;
+    caret-color: #ffffff !important;
+    resize: none;
+  }
+
+  /* Цвета токенов для LSL / SQL-like DSL */
+  .lsl-comment { color: #8b949e; font-style: italic; }
+  .lsl-string  { color: #a5d6ff; }
+  .lsl-keyword { color: #ff7b72; font-weight: 600; }
+  .lsl-func    { color: #d2a8ff; }
+  .lsl-number  { color: #79c0ff; }
+  .lsl-param   { color: #ffa657; }
+</style>
+
+<script>
+  function attachSyntaxHighlight(textarea, keywords) {
+    // 1. Оборачиваем существующий textarea, сохраняя его атрибуты и обработчики
+    const wrap = document.createElement('div');
+    wrap.className = 'lsl-highlight-wrap';
+    textarea.parentNode.insertBefore(wrap, textarea);
+
+    const layer = document.createElement('pre');
+    layer.className = 'lsl-highlight-layer';
+    layer.setAttribute('aria-hidden', 'true');
+
+    wrap.appendChild(layer);
+    wrap.appendChild(textarea);
+
+    // Копируем внутренние отступы и рамки исходного textarea
+    const cs = getComputedStyle(textarea);
+    layer.style.padding = cs.padding;
+    layer.style.border = cs.border;
+    layer.style.borderRadius = cs.borderRadius;
+
+    // 2. Регулярное выражение для SQL-like DSL
+    const tokenRe = new RegExp(
+      [
+        '(?<comment>--[^\\n]*|//[^\\n]*|/\\*[\\s\\S]*?\\*/)',
+        "(?<string>'(?:''|[^'])*'|\"(?:\\\\.|[^\"])*\")",
+        `(?<keyword>\\b(?:${keywords.join('|')})\\b)`,
+        '(?<func>\\b[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\())',
+        '(?<param>[:@$][a-zA-Z_][a-zA-Z0-9_]*)',
+        '(?<number>\\b\\d+(?:\\.\\d+)?(?:s|ms|px|%)?\\b)'
+      ].join('|'),
+      'gi'
+    );
+
+    const escapeHtml = (s) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    function render() {
+      const text = textarea.value;
+      let html = '';
+      let last = 0;
+
+      for (const m of text.matchAll(tokenRe)) {
+        html += escapeHtml(text.slice(last, m.index));
+        const { comment, string, keyword, func, param, number } = m.groups;
+        const val = escapeHtml(m[0]);
+
+        if (comment)      html += `<span class="lsl-comment">${val}</span>`;
+        else if (string)  html += `<span class="lsl-string">${val}</span>`;
+        else if (keyword) html += `<span class="lsl-keyword">${val}</span>`;
+        else if (func)    html += `<span class="lsl-func">${val}</span>`;
+        else if (param)   html += `<span class="lsl-param">${val}</span>`;
+        else if (number)  html += `<span class="lsl-number">${val}</span>`;
+
+        last = m.index + m[0].length;
+      }
+
+      html += escapeHtml(text.slice(last));
+      if (text.endsWith('\n')) html += '\n';
+      layer.innerHTML = html;
+    }
+
+    // 3. Синхронизация при вводе, прокрутке и программном изменении .value («Пример» / «Открыть»)
+    textarea.addEventListener('input', render);
+    textarea.addEventListener('scroll', () => {
+      layer.scrollTop = textarea.scrollTop;
+      layer.scrollLeft = textarea.scrollLeft;
+    });
+
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+    Object.defineProperty(textarea, 'value', {
+      get() { return descriptor.get.call(this); },
+      set(val) {
+        descriptor.set.call(this, val);
+        render();
+      }
+    });
+
+    render();
+  }
+
+  // Инициализация на странице LSL Studio
+  const lslTextarea = document.querySelector('textarea');
+  if (lslTextarea) {
+    attachSyntaxHighlight(lslTextarea, [
+      'SELECT', 'FROM', 'WHERE', 'AT', 'UPDATE', 'SET', 'AS', 'IN', 'LIKE',
+      'INSERT', 'INTO', 'VALUES', 'TO', 'DURATION', 'DELAY', 'EASE', 'WITH'
+    ]);
+  }
+</script>
+
   </body>
 </html>
