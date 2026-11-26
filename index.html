@@ -277,6 +277,42 @@
 'use strict';
 
 /* ============================================================================
+ * LSL STUDIO
+ * Структура скрипта:
+ *   0. Константы и общие утилиты
+ *   1. Демо-сценарий (DEFAULT_DSL)
+ *   2. Сканер строк: кавычки, скобки, разделители
+ *   3. Парсер LSL
+ *   4. Компилятор DSL → Lottie JSON (2D-камера + динамические шрифты)
+ *   5. Загрузчик шрифтов (Google Fonts + Base64 для экспорта в видео)
+ *   6. UI, плеер и экспорт видео
+ * ========================================================================== */
+
+/* ============================================================================
+ * 0. КОНСТАНТЫ И ОБЩИЕ УТИЛИТЫ
+ * ========================================================================== */
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const STORAGE_KEY = 'lsl_lottie_studio:dsl';
+
+/** Индекс камеры в Lottie-документе: null-слой (ty: 3), к которому привязаны все обычные слои. */
+const CAMERA_INDEX = 9999;
+
+/** Значения полей слоя по умолчанию. */
+const DEFAULT_LAYER = {
+  type: 'rect', x: 0, y: 0, width: 100, height: 100,
+  scale: 100, rotation: 0, opacity: 100, color: '#ffffff',
+  radius: 0, text: '', size: 24, font: 'Arial', fixed: false,
+};
+
+/** Значения композиции по умолчанию. */
+const DEFAULT_COMPOSITION = { width: 540, height: 960, fps: 60, duration: 5.0 };
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
+
+/* ============================================================================
  * 1. ДЕМО-СЦЕНАРИЙ: большой мир, камера, шрифты
  * ========================================================================== */
 
@@ -433,23 +469,50 @@ UPDATE camera SET x = 2600, y = 480, zoom = 1.0 AT 12.5 WITH (duration = 1.3, ea
 `;
 
 /* ============================================================================
- * 2. БАЗОВЫЕ УТИЛИТЫ ПАРСЕРА
+ * 2. СКАНЕР СТРОК
+ * Все функции ниже игнорируют содержимое строковых литералов и скобочных
+ * групп, поэтому значения в DSL могут свободно содержать кавычки и скобки.
  * ========================================================================== */
+
+/** Кавычки, открывающие строковый литерал. */
+const QUOTES = new Set(["'", '"']);
+
+/** Скобочные группы: открывающая → закрывающая. */
+const BRACKETS = { '(': ')', '[': ']' };
+
+/** Индекс закрывающей кавычки для кавычки в позиции start (escape: \'). */
+function findQuoteEnd(text, start) {
+  const quote = text[start];
+  for (let i = start + 1; i < text.length; i++) {
+    if (text[i] === quote && text[i - 1] !== '\\') return i;
+  }
+  return text.length - 1;
+}
+
+/** Индекс закрывающей скобки для открывающей в позиции start. */
+function findClosingBracket(text, start) {
+  const closer = BRACKETS[text[start]];
+  let depth = 0;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (QUOTES.has(ch)) { i = findQuoteEnd(text, i); continue; }
+    if (BRACKETS[ch]) depth++;
+    else if (ch === closer && --depth === 0) return i;
+  }
+  return text.length - 1;
+}
 
 /** Разделяет строку по разделителю, игнорируя его внутри кавычек и скобок. */
 function splitTopLevel(str, sep = ',') {
   const parts = [];
   let current = '';
-  let quote = null;
   let depth = 0;
   for (let i = 0; i < str.length; i++) {
     const ch = str[i];
-    if (quote) {
-      current += ch;
-      if (ch === quote && str[i - 1] !== '\\') quote = null;
-    } else if (ch === "'" || ch === '"') {
-      quote = ch;
-      current += ch;
+    if (QUOTES.has(ch)) {
+      const end = findQuoteEnd(str, i);
+      current += str.slice(i, end + 1);
+      i = end;
     } else if (ch === '(' || ch === '[') {
       depth++;
       current += ch;
@@ -467,13 +530,13 @@ function splitTopLevel(str, sep = ',') {
   return parts;
 }
 
-/** Срезает внешние скобки: "(a, b)" -> "a, b". */
+/** Срезает внешние скобки: "(a, b)" → "a, b". */
 function stripParens(str) {
   const t = str.trim();
   return t.startsWith('(') && t.endsWith(')') ? t.slice(1, -1) : t;
 }
 
-/** '123' -> "123", "'текст'" -> текст, "true" -> true и массивы вида "[0.25, 0.1, 0.25, 1.0]". */
+/** '123' → 123, "'текст'" → текст, "true" → true и массивы вида "[0.25, 0.1]". */
 function parseValue(raw) {
   const s = raw.trim();
   if ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith('"') && s.endsWith('"'))) {
@@ -489,7 +552,7 @@ function parseValue(raw) {
   return s !== '' && !isNaN(num) ? num : s;
 }
 
-/** "x = 10, color = '#fff'" -> { x: 10, color: '#fff' }. */
+/** "x = 10, color = '#fff'" → { x: 10, color: '#fff' }. */
 function parseAssignments(str) {
   const obj = {};
   for (const part of splitTopLevel(str)) {
@@ -500,39 +563,14 @@ function parseAssignments(str) {
   return obj;
 }
 
-/** Убирает комментарий "-- ..." с учётом кавычек. */
+/** Убирает комментарий "-- ..." до конца строки (не трогая его внутри кавычек). */
 function stripLineComment(line) {
-  let quote = null;
   for (let i = 0; i < line.length - 1; i++) {
     const ch = line[i];
-    if (quote) {
-      if (ch === quote && line[i - 1] !== '\\') quote = null;
-    } else if (ch === "'" || ch === '"') {
-      quote = ch;
-    } else if (ch === '-' && line[i + 1] === '-') {
-      return line.slice(0, i);
-    }
+    if (QUOTES.has(ch)) { i = findQuoteEnd(line, i); continue; }
+    if (ch === '-' && line[i + 1] === '-') return line.slice(0, i);
   }
   return line;
-}
-
-/** Возвращает индекс парной скобки к openIndex (без учёта вложенности не нужен). */
-function findClosingParen(text, openIndex) {
-  let quote = null;
-  let depth = 0;
-  for (let i = openIndex; i < text.length; i++) {
-    const ch = text[i];
-    if (quote) {
-      if (ch === quote && text[i - 1] !== '\\') quote = null;
-    } else if (ch === "'" || ch === '"') {
-      quote = ch;
-    } else if (ch === '(') {
-      depth++;
-    } else if (ch === ')' && --depth === 0) {
-      return i;
-    }
-  }
-  return text.length - 1;
 }
 
 /**
@@ -541,24 +579,19 @@ function findClosingParen(text, openIndex) {
  * (WHERE / AT / WITH), даже если значения содержат похожие слова в кавычках.
  */
 function findTopLevelKeywords(text, words) {
-  const found = [];
   const upper = text.toUpperCase();
-  let quote = null;
+  const found = [];
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
-    if (quote) {
-      if (ch === quote && text[i - 1] !== '\\') quote = null;
-      continue;
-    }
-    if (ch === "'" || ch === '"') { quote = ch; continue; }
-    if (ch === '(') { i = findClosingParen(text, i); continue; }
+    if (QUOTES.has(ch)) { i = findQuoteEnd(text, i); continue; }
+    if (BRACKETS[ch]) { i = findClosingBracket(text, i); continue; }
 
-    const startsWord = i === 0 || /\s/.test(text[i - 1]);
-    if (!startsWord) continue;
-    for (const w of words) {
-      const end = i + w.length;
-      if (upper.startsWith(w, i) && (end >= text.length || /\s/.test(text[end]))) {
-        found.push({ word: w, index: i });
+    const isWordStart = i === 0 || /\s/.test(text[i - 1]);
+    if (!isWordStart) continue;
+    for (const word of words) {
+      const end = i + word.length;
+      if (upper.startsWith(word, i) && (end >= text.length || /\s/.test(text[end]))) {
+        found.push({ word, index: i });
         i = end - 1;
         break;
       }
@@ -572,26 +605,22 @@ function splitUpdateTail(rest) {
   const marks = findTopLevelKeywords(rest, ['WHERE', 'AT', 'WITH'])
     .sort((a, b) => a.index - b.index);
   const tail = { set: '', where: null, at: 0, with: {} };
+  if (!marks.length) { tail.set = rest.trim(); return tail; }
 
+  tail.set = rest.slice(0, marks[0].index).trim();
   for (let i = 0; i < marks.length; i++) {
     const { word, index } = marks[i];
-    const next = i + 1 < marks.length ? marks[i + 1].index : rest.length;
-    const segment = rest.slice(index + word.length, next).trim();
-    if (i === 0) tail.set = rest.slice(0, index).trim();
+    const end = i + 1 < marks.length ? marks[i + 1].index : rest.length;
+    const segment = rest.slice(index + word.length, end).trim();
 
-    if (word === 'AT') {
-      tail.at = parseFloat(segment) || 0;
-    } else if (word === 'WITH') {
-      tail.with = parseAssignments(stripParens(segment));
-    } else {
-      tail.where = segment;
-    }
+    if (word === 'AT') tail.at = parseFloat(segment) || 0;
+    else if (word === 'WITH') tail.with = parseAssignments(stripParens(segment));
+    else tail.where = segment;
   }
-  if (!marks.length) tail.set = rest.trim();
   return tail;
 }
 
-/** 3. Приводит SET/AT/WITH к единому объекту события анимации. */
+/** Приводит SET/AT/WITH к единому объекту события анимации. */
 function makeUpdate(setPart, atTime, withObj) {
   const delay = Number(withObj.delay ?? 0);
   return {
@@ -608,13 +637,7 @@ function makeUpdate(setPart, atTime, withObj) {
  * 3. ПАРСЕР LSL
  * ========================================================================== */
 
-const DEFAULT_LAYER = {
-  type: 'rect', x: 0, y: 0, width: 100, height: 100,
-  scale: 100, rotation: 0, opacity: 100, color: '#ffffff',
-  radius: 0, text: '', size: 24, font: 'Arial', fixed: false,
-};
-
-function tryParseInsert(stmt, layers) {
+function parseInsertStatement(stmt, layers) {
   const match = stmt.match(/^INSERT\s+INTO\s+layers\s*\(([^)]+)\)\s*VALUES\s*(.+)$/is);
   if (!match) return false;
 
@@ -634,123 +657,138 @@ function tryParseInsert(stmt, layers) {
   return true;
 }
 
-function tryParseCompositionUpdate(stmt, comp) {
+function parseCompositionUpdate(stmt, comp) {
   const match = stmt.match(/^UPDATE\s+composition\s+SET\s+(.+)$/is);
   if (!match) return false;
   Object.assign(comp, parseAssignments(match[1]));
   return true;
 }
 
-function tryParseCameraUpdate(stmt, out) {
+function parseCameraUpdate(stmt, cameraUpdates) {
   const match = stmt.match(/^UPDATE\s+camera\s+SET\s+(.+)$/is);
   if (!match) return false;
   const tail = splitUpdateTail(match[1]);
-  out.push(makeUpdate(tail.set, tail.at, tail.with));
+  cameraUpdates.push(makeUpdate(tail.set, tail.at, tail.with));
   return true;
 }
 
-/** Компилирует строку условия WHERE в функцию (layer) => boolean. */
-function compileWherePredicate(whereStr) {
-  const orParts = whereStr.split(/\s+OR\s+/i);
-  const orFuncs = orParts.map((orPart) => {
-    const andParts = orPart.split(/\s+AND\s+/i);
-    const andFuncs = andParts.map((cond) => {
-      const c = cond.trim();
-
-      // 1. col IN ('a', 'b')
-      let m = c.match(/^(\w+)\s+IN\s*\((.+)\)$/i);
-      if (m) {
-        const [, col, listStr] = m;
-        const list = splitTopLevel(listStr).map(parseValue);
-        return (layer) => list.includes(layer[col]);
-      }
-
-      // 2. col LIKE 'prefix%'
-      m = c.match(/^(\w+)\s+LIKE\s+(.+)$/i);
-      if (m) {
-        const [, col, rawPattern] = m;
-        const pat = String(parseValue(rawPattern))
-          .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-          .replace(/%/g, '.*')
-          .replace(/_/g, '.');
-        const re = new RegExp('^' + pat + '$', 'i');
-        return (layer) => re.test(String(layer[col] ?? ''));
-      }
-
-      // 3. col (= | != | <> | >= | <= | > | <) value
-      m = c.match(/^(\w+)\s*(!=|<>|>=|<=|=|>|<)\s*(.+)$/);
-      if (m) {
-        const [, col, op, rawVal] = m;
-        const val = parseValue(rawVal);
-        return (layer) => {
-          const cur = layer[col];
-          switch (op) {
-            case '=':  return cur === val;
-            case '!=':
-            case '<>': return cur !== val;
-            case '>':  return cur > val;
-            case '<':  return cur < val;
-            case '>=': return cur >= val;
-            case '<=': return cur <= val;
-            default:   return false;
-          }
-        };
-      }
-
-      throw new Error('Неподдерживаемое условие WHERE: ' + c);
-    });
-    return (layer) => andFuncs.every((fn) => fn(layer));
-  });
-  return (layer) => orFuncs.some((fn) => fn(layer));
-}
-
-function tryParseLayerUpdate(stmt, out) {
+function parseLayerUpdate(stmt, updates) {
   const match = stmt.match(/^UPDATE\s+layers\s+SET\s+(.+)$/is);
   if (!match) return false;
 
   const tail = splitUpdateTail(match[1]);
   const update = makeUpdate(tail.set, tail.at, tail.with);
   update.matchFn = tail.where ? compileWherePredicate(tail.where) : () => true;
-
-  out.push(update);
+  updates.push(update);
   return true;
 }
 
+/** Обработчики инструкций: каждая возвращает true, если распознала выражение. */
+const STATEMENT_PARSERS = [
+  // INSERT INTO layers (...) VALUES (...), (...);
+  (stmt, ctx) => parseInsertStatement(stmt, ctx.layers),
+  // UPDATE composition SET ...;
+  (stmt, ctx) => parseCompositionUpdate(stmt, ctx.comp),
+  // UPDATE camera SET ... [AT ...] [WITH (...)];
+  (stmt, ctx) => parseCameraUpdate(stmt, ctx.cameraUpdates),
+  // UPDATE layers SET ... [WHERE ...] [AT ...] [WITH (...)];
+  (stmt, ctx) => parseLayerUpdate(stmt, ctx.updates),
+];
 
+/** Разбирает текст DSL в { comp, layers, updates, cameraUpdates }. */
 function parseDSL(text) {
   const cleaned = text.split('\n').map(stripLineComment).join('\n');
   const statements = splitTopLevel(cleaned, ';');
 
-  const comp = { width: 540, height: 960, fps: 60, duration: 5.0 };
-  const layers = new Map();
-  const updates = [];
-  const cameraUpdates = [];
+  const ctx = {
+    comp: { ...DEFAULT_COMPOSITION },
+    layers: new Map(),
+    updates: [],
+    cameraUpdates: [],
+  };
 
   for (const raw of statements) {
     const stmt = raw.trim();
     if (!stmt) continue;
-    if (tryParseInsert(stmt, layers)) continue;
-    if (tryParseCompositionUpdate(stmt, comp)) continue;
-    if (tryParseCameraUpdate(stmt, cameraUpdates)) continue;
-    if (tryParseLayerUpdate(stmt, updates)) continue;
-    throw new Error('Неизвестная инструкция LSL: ' + stmt.slice(0, 60));
+    const matched = STATEMENT_PARSERS.some((parse) => parse(stmt, ctx));
+    if (!matched) throw new Error('Неизвестная инструкция LSL: ' + stmt.slice(0, 60));
   }
 
-  return { comp, layers, updates, cameraUpdates };
+  return ctx;
+}
+
+/* --- Условия WHERE: компиляция строки в предикат (layer) => boolean --- */
+
+/** Условие "col IN ('a', 'b')". */
+function compileInPredicate(col, listStr) {
+  const list = splitTopLevel(listStr).map(parseValue);
+  return (layer) => list.includes(layer[col]);
+}
+
+/** Условие "col LIKE 'шаблон%'": % — любое число символов, _ — один символ. */
+function compileLikePredicate(col, rawPattern) {
+  const pat = String(parseValue(rawPattern))
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/%/g, '.*')
+    .replace(/_/g, '.');
+  const re = new RegExp('^' + pat + '$', 'i');
+  return (layer) => re.test(String(layer[col] ?? ''));
+}
+
+/** Условие сравнения: col (= | != | <> | >= | <= | > | <) value. */
+function compileComparisonPredicate(col, op, rawVal) {
+  const val = parseValue(rawVal);
+  const compare = {
+    '=': (a, b) => a === b,
+    '!=': (a, b) => a !== b,
+    '<>': (a, b) => a !== b,
+    '>': (a, b) => a > b,
+    '<': (a, b) => a < b,
+    '>=': (a, b) => a >= b,
+    '<=': (a, b) => a <= b,
+  }[op];
+  if (!compare) throw new Error('Неподдерживаемое условие WHERE: ' + col + ' ' + op);
+  return (layer) => compare(layer[col], val);
+}
+
+/**
+ * Компилирует строку условия WHERE в функцию (layer) => boolean.
+ * Поддерживает OR на верхнем уровне, AND внутри и три вида условий.
+ */
+function compileWherePredicate(whereStr) {
+  const orPredicates = whereStr.split(/\s+OR\s+/i).map((orPart) => {
+    const andPredicates = orPart.split(/\s+AND\s+/i).map((raw) => {
+      const cond = raw.trim();
+
+      let m = cond.match(/^(\w+)\s+IN\s*\((.+)\)$/i);
+      if (m) return compileInPredicate(m[1], m[2]);
+
+      m = cond.match(/^(\w+)\s+LIKE\s+(.+)$/i);
+      if (m) return compileLikePredicate(m[1], m[2]);
+
+      m = cond.match(/^(\w+)\s*(!=|<>|>=|<=|=|>|<)\s*(.+)$/);
+      if (m) return compileComparisonPredicate(m[1], m[2], m[3]);
+
+      throw new Error('Неподдерживаемое условие WHERE: ' + cond);
+    });
+    return (layer) => andPredicates.every((fn) => fn(layer));
+  });
+  return (layer) => orPredicates.some((fn) => fn(layer));
 }
 
 /* ============================================================================
- * 4. КОМПИЛЯТОР В LOTTIE JSON (2D-камера + динамические шрифты)
+ * 4. КОМПИЛЯТОР DSL → LOTTIE JSON
  * ========================================================================== */
 
+/** Хэндлы ключевого кадра Lottie из пары контрольных точек cubic-bezier. */
 const bezier = (ix, iy, ox, oy) => ({ i: { x: [ix], y: [iy] }, o: { x: [ox], y: [oy] } });
 
-// Порядок аргументов bezier(x2, y2, x1, y1) для CSS cubic-bezier(x1, y1, x2, y2):
+// В Lottie "o" — исходящий хэндл (x1, y1), "i" — входящий (x2, y2) из cubic-bezier.
 const EASING = {
-  linear: bezier(1, 1, 0, 0),          // cubic-bezier(0, 0, 1, 1)
-  in:     bezier(1, 1, 0.42, 0),       // cubic-bezier(0.42, 0, 1, 1)
-  out:    bezier(0.58, 1, 0, 0),       // cubic-bezier(0, 0, 0.58, 1)
-  inOut:  bezier(0.58, 1, 0.42, 0),    // cubic-bezier(0.42, 0, 0.58, 1)
+  linear: bezier(1, 1, 0, 0),
+  in:     bezier(1, 1, 0.42, 0),
+  out:    bezier(0.58, 1, 0, 0),
+  inOut:  bezier(0.58, 1, 0.42, 0),
 };
 const LINEAR = EASING.linear;
 
@@ -767,16 +805,20 @@ function hexToLottieColor(hex) {
   ].map((v) => +v.toFixed(4));
 }
 
+/** Именованная кривая или массив [x1, y1, x2, y2] → хэндлы ключевого кадра. */
 function resolveEase(easeSpec) {
   if (Array.isArray(easeSpec) && easeSpec.length === 4) {
     const [x1, y1, x2, y2] = easeSpec.map(Number);
-    // В Lottie: o = outgoing handle (x1, y1), i = incoming handle (x2, y2)
     return bezier(x2, y2, x1, y1);
   }
   return EASING[String(easeSpec)] || EASING.inOut;
 }
 
-/** Собирает Lottie-трек ключевых кадров с поддержкой repeat, yoyo и cubic-bezier. */
+/**
+ * Собирает Lottie-трек ключевых кадров из событий одного канала.
+ * Поддерживает repeat (повторы) и yoyo (туда-обратно), которые
+ * разворачиваются в последовательность атомарных переходов.
+ */
 function buildKeyframes(events, initialVal, fps, isArray) {
   const make = (val) => (isArray ? val.slice() : [val]);
   const sorted = [...events].sort((a, b) => a.t - b.t);
@@ -794,15 +836,12 @@ function buildKeyframes(events, initialVal, fps, isArray) {
     for (let c = 0; c < cycles; c++) {
       const startT = ev.t + c * ev.dur;
       if (ev.yoyo) {
-        const isForward = c % 2 === 0;
-        const target = isForward ? toVal : fromVal;
+        const target = c % 2 === 0 ? toVal : fromVal;
         expanded.push({ t: startT, dur: ev.dur, ease: ev.ease, val: target });
         trackedVal = target;
       } else {
         // При repeat без yoyo на каждом новом цикле сбрасываемся в fromVal
-        if (c > 0) {
-          expanded.push({ t: startT, dur: 0, ease: 'linear', val: fromVal });
-        }
+        if (c > 0) expanded.push({ t: startT, dur: 0, ease: 'linear', val: fromVal });
         expanded.push({ t: startT, dur: ev.dur, ease: ev.ease, val: toVal });
         trackedVal = toVal;
       }
@@ -844,74 +883,71 @@ function buildKeyframes(events, initialVal, fps, isArray) {
   return { a: 1, k: kf };
 }
 
-/** Разбирает UPDATE-события одного слоя на анимационные каналы. */
+/**
+ * Разбирает UPDATE-события одного слоя на каналы анимации.
+ * Каждый трекер соответствует одному каналу и накапливает его текущее
+ * значение, чтобы частичный SET (например, только width) не сбрасывал
+ * остальные свойства.
+ */
 function collectLayerEvents(layer, updates) {
-  const channels = {
-    pos: [],
-    scale: [],
-    rot: [],
-    op: [],
-    color: [],
-    size: [],
-    radius: [],
-    text: [],
-  };
-  let curX = layer.x;
-  let curY = layer.y;
-  let curW = layer.width;
-  let curH = layer.height;
-  let curText = String(layer.text || '');
-  let curColor = layer.color;
+  const channels = { pos: [], scale: [], rot: [], op: [], color: [], size: [], radius: [], text: [] };
+  const pos = { x: layer.x, y: layer.y };
+  const size = { w: layer.width, h: layer.height };
+  let color = layer.color;
+  let text = String(layer.text || '');
 
   const ev = (u, val) => ({
-    t: u.t,
-    dur: u.dur,
-    ease: u.ease,
-    repeat: u.repeat,
-    yoyo: u.yoyo,
-    val,
+    t: u.t, dur: u.dur, ease: u.ease, repeat: u.repeat, yoyo: u.yoyo, val,
   });
+
+  const trackers = [
+    // pos: x и y обновляются совместно, чтобы не терять вторую координату
+    (u) => {
+      const { set } = u;
+      if (set.x === undefined && set.y === undefined) return;
+      if (set.x !== undefined) pos.x = set.x;
+      if (set.y !== undefined) pos.y = set.y;
+      channels.pos.push(ev(u, [pos.x, pos.y, 0]));
+    },
+    // size: аналогично — width и height всегда парой
+    (u) => {
+      const { set } = u;
+      if (set.width === undefined && set.height === undefined) return;
+      if (set.width !== undefined) size.w = set.width;
+      if (set.height !== undefined) size.h = set.height;
+      channels.size.push(ev(u, [size.w, size.h]));
+    },
+    (u) => { if (u.set.radius !== undefined) channels.radius.push(ev(u, u.set.radius)); },
+    (u) => {
+      const sc = u.set.scale;
+      if (sc !== undefined) channels.scale.push(ev(u, [sc, sc, 100]));
+    },
+    (u) => { if (u.set.rotation !== undefined) channels.rot.push(ev(u, u.set.rotation)); },
+    (u) => { if (u.set.opacity !== undefined) channels.op.push(ev(u, u.set.opacity)); },
+    (u) => {
+      if (u.set.color === undefined) return;
+      color = u.set.color;
+      channels.color.push(ev(u, hexToLottieColor(color)));
+    },
+    // text: замена текста, а также цвет текстового слоя (событие t);
+    // color-трекер выше уже обновил текущий цвет, если он менялся
+    (u) => {
+      const { set } = u;
+      const touchesText = set.text !== undefined || (layer.type === 'text' && set.color !== undefined);
+      if (!touchesText) return;
+      if (set.text !== undefined) text = String(set.text);
+      channels.text.push({ t: u.t, text, color });
+    },
+  ];
 
   for (const u of updates) {
     if (u.matchFn && !u.matchFn(layer)) continue;
-    const { set } = u;
-
-    if (set.x !== undefined || set.y !== undefined) {
-      curX = set.x !== undefined ? set.x : curX;
-      curY = set.y !== undefined ? set.y : curY;
-      channels.pos.push(ev(u, [curX, curY, 0]));
-    }
-    if (set.width !== undefined || set.height !== undefined) {
-      curW = set.width !== undefined ? set.width : curW;
-      curH = set.height !== undefined ? set.height : curH;
-      channels.size.push(ev(u, [curW, curH]));
-    }
-    if (set.radius !== undefined) {
-      channels.radius.push(ev(u, set.radius));
-    }
-    if (set.scale !== undefined) {
-      const sc = set.scale;
-      channels.scale.push(ev(u, [sc, sc, 100]));
-    }
-    if (set.rotation !== undefined) {
-      channels.rot.push(ev(u, set.rotation));
-    }
-    if (set.opacity !== undefined) {
-      channels.op.push(ev(u, set.opacity));
-    }
-    if (set.color !== undefined) {
-      curColor = set.color;
-      channels.color.push(ev(u, hexToLottieColor(curColor)));
-    }
-    if (set.text !== undefined || (layer.type === 'text' && set.color !== undefined)) {
-      if (set.text !== undefined) curText = String(set.text);
-      channels.text.push({ t: u.t, text: curText, color: curColor });
-    }
+    for (const track of trackers) track(u);
   }
   return channels;
 }
 
-
+/** Базовый слой Lottie: непропорциональные слои привязываются к камере. */
 function createBaseLayer(name, ks, ind, totalFrames, camInd, fixed) {
   const layer = { ddd: 0, ind, nm: name, sr: 1, ks, ao: 0, ip: 0, op: totalFrames, st: 0, bm: 0 };
   if (!fixed) layer.parent = camInd;
@@ -928,6 +964,7 @@ function layerTransform(layer, channels, fps) {
   };
 }
 
+/** Графический слой: прямоугольник или эллипс с заливкой и анимируемым размером. */
 function createShapeLayer(layer, channels, ind, totalFrames, fps, camInd) {
   const sizeTrack = buildKeyframes(channels.size, [layer.width, layer.height], fps, true);
 
@@ -971,6 +1008,7 @@ function createShapeLayer(layer, channels, ind, totalFrames, fps, camInd) {
   };
 }
 
+/** Текстовый слой: динамические документы (смена текста и цвета по кадрам). */
 function createTextLayer(layer, channels, ind, totalFrames, fps, camInd) {
   const size = layer.size || 24;
   const fontName = resolveFontName(layer);
@@ -986,23 +1024,14 @@ function createTextLayer(layer, channels, ind, totalFrames, fps, camInd) {
     fc: hexToLottieColor(hexColor).slice(0, 3),
   });
 
-  const textKeys = [{
-    t: 0,
-    s: makeDocState(layer.text || '', layer.color),
-  }];
-
+  const textKeys = [{ t: 0, s: makeDocState(layer.text || '', layer.color) }];
   const sortedTextEvents = [...channels.text].sort((a, b) => a.t - b.t);
+
   for (const item of sortedTextEvents) {
     const frame = Math.round(item.t * fps);
     const prev = textKeys[textKeys.length - 1];
-    if (prev && prev.t === frame) {
-      prev.s = makeDocState(item.text, item.color);
-    } else {
-      textKeys.push({
-        t: frame,
-        s: makeDocState(item.text, item.color),
-      });
-    }
+    if (prev && prev.t === frame) prev.s = makeDocState(item.text, item.color);
+    else textKeys.push({ t: frame, s: makeDocState(item.text, item.color) });
   }
 
   return {
@@ -1017,7 +1046,7 @@ function createTextLayer(layer, channels, ind, totalFrames, fps, camInd) {
   };
 }
 
-/** Разбирает события камеры на каналы anchor (позиция) и scale (zoom * 100). */
+/** Разбирает события камеры на каналы anchor (позиция) и scale (zoom × 100). */
 function collectCameraEvents(comp, cameraUpdates) {
   const anchor = [];
   const scale = [];
@@ -1066,11 +1095,11 @@ function resolveFontName(layer) {
   return String(layer.font || 'Arial').trim() || 'Arial';
 }
 
+/** Компилирует разобранный DSL в полный Lottie-документ. */
 function compileToLottie(parsed) {
   const comp = parsed.comp;
   const fps = comp.fps || 60;
   const totalFrames = Math.max(1, Math.round((comp.duration || 5) * fps));
-  const CAM_IND = 9999;
 
   // В Lottie слои рисуются сверху вниз по массиву, поэтому разворачиваем порядок вставки
   const lottieLayers = [];
@@ -1078,9 +1107,9 @@ function compileToLottie(parsed) {
   for (const layer of [...parsed.layers.values()].reverse()) {
     const channels = collectLayerEvents(layer, parsed.updates);
     const build = layer.type === 'text' ? createTextLayer : createShapeLayer;
-    lottieLayers.push(build(layer, channels, ind++, totalFrames, fps, CAM_IND));
+    lottieLayers.push(build(layer, channels, ind++, totalFrames, fps, CAMERA_INDEX));
   }
-  lottieLayers.push(createCameraRig(comp, parsed.cameraUpdates, fps, totalFrames, CAM_IND));
+  lottieLayers.push(createCameraRig(comp, parsed.cameraUpdates, fps, totalFrames, CAMERA_INDEX));
 
   const usedFonts = new Set();
   for (const layer of parsed.layers.values()) {
@@ -1144,6 +1173,7 @@ async function embedFontUrls(css) {
   return embedded;
 }
 
+/** Загружает CSS Google Fonts с кириллицей и латиницей, шрифты встраиваются. */
 async function loadGoogleFontCss(family) {
   const url = 'https://fonts.googleapis.com/css?family='
     + encodeURIComponent(family).replace(/%20/g, '+') + '&display=swap';
@@ -1151,7 +1181,6 @@ async function loadGoogleFontCss(family) {
   if (!res.ok) throw new Error('HTTP ' + res.status);
 
   const rawCss = await res.text();
-  // Оставляем только блоки для кириллицы и базовой латиницы
   const filtered = rawCss
     .split('/*')
     .filter((block) => block.trim())
@@ -1162,6 +1191,7 @@ async function loadGoogleFontCss(family) {
   return embedFontUrls(filtered || rawCss);
 }
 
+/** Подключает шрифты в <head> и дожидается их готовности в document.fonts. */
 async function ensureFontsLoaded(fontsList) {
   for (const { fFamily: family } of fontsList) {
     if (!family || SYSTEM_FONTS.has(family.toLowerCase()) || fontCssCache.has(family)) continue;
@@ -1186,9 +1216,6 @@ async function ensureFontsLoaded(fontsList) {
 /* ============================================================================
  * 6. UI, ПЛЕЕР И ЭКСПОРТ
  * ========================================================================== */
-
-const STORAGE_KEY = 'lsl_lottie_studio:dsl';
-const SVG_NS = 'http://www.w3.org/2000/svg';
 
 const els = {
   editor: document.getElementById('dsl-editor'),
@@ -1218,7 +1245,7 @@ const state = {
   isExporting: false,
 };
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/* ---------- Сообщения об ошибках и вкладки ---------- */
 
 function showError(message) {
   els.errorBox.textContent = message;
@@ -1230,6 +1257,17 @@ function hideError() {
   els.errorBox.classList.remove('visible');
 }
 
+function switchTab(tab) {
+  const showPreview = tab === 'preview';
+  els.tabPreview.classList.toggle('active', showPreview);
+  els.tabRaw.classList.toggle('active', !showPreview);
+  els.stageWrap.style.display = showPreview ? 'flex' : 'none';
+  els.rawJson.style.display = showPreview ? 'none' : 'block';
+}
+
+/* ---------- Плеер ---------- */
+
+/** Вписывает контейнер превью в свободное место панели. */
 function fitStageBox(w, h) {
   const rect = els.stageWrap.getBoundingClientRect();
   const scale = Math.min(Math.max(120, rect.width - 40) / w, Math.max(120, rect.height - 40) / h, 1);
@@ -1259,6 +1297,14 @@ function resumePlayback() {
   els.btnPlay.textContent = '⏸ Пауза';
 }
 
+function togglePlayback() {
+  if (!state.anim || state.isExporting) return;
+  if (state.isPlaying) pausePlayback();
+  else resumePlayback();
+}
+
+/* ---------- Компиляция и запуск ---------- */
+
 async function compileAndRun() {
   if (typeof lottie === 'undefined') {
     showError('Библиотека lottie-web не загружена. Проверьте подключение к CDN.');
@@ -1284,7 +1330,7 @@ async function compileAndRun() {
       renderer: 'svg',
       loop: true,
       autoplay: true,
-      animationData: JSON.parse(JSON.stringify(compiled)),
+      animationData: deepClone(compiled),
       rendererSettings: {
         preserveAspectRatio: 'xMidYMid meet',
         progressiveLoad: false,
@@ -1299,6 +1345,8 @@ async function compileAndRun() {
   }
 }
 
+/* ---------- Скачивание файлов ---------- */
+
 function downloadBlob(blob, filename) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1306,6 +1354,18 @@ function downloadBlob(blob, filename) {
   document.body.appendChild(a);
   a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+
+function saveDslFile() {
+  downloadBlob(new Blob([els.editor.value], { type: 'text/plain;charset=utf-8' }), 'animation.lsl');
+}
+
+function saveLottieJson() {
+  if (!state.lottieData) return;
+  downloadBlob(
+    new Blob([JSON.stringify(state.lottieData, null, 2)], { type: 'application/json' }),
+    'animation.lottie.json'
+  );
 }
 
 /** Рисует текущий SVG-кадр плеера на offscreen-canvas. */
@@ -1337,6 +1397,8 @@ function renderSvgFrameToCanvas(ctx, width, height, fontDefs) {
   });
 }
 
+/* ---------- Экспорт видео ---------- */
+
 function pickRecorderMime() {
   if (!window.MediaRecorder) return null;
   const candidates = [
@@ -1359,7 +1421,7 @@ async function exportVideo() {
     return;
   }
 
-  els.tabPreview.click();
+  switchTab('preview');
   state.isExporting = true;
   pausePlayback();
   els.recBadge.classList.add('on');
@@ -1417,16 +1479,15 @@ async function exportVideo() {
 
 /* ---------- Привязка событий ---------- */
 
-els.btnCompile.addEventListener('click', compileAndRun);
+function onScrubberInput() {
+  if (!state.anim || state.isExporting) return;
+  pausePlayback();
+  state.anim.goToAndStop(Number(els.scrubber.value), true);
+  updateTimeUI();
+}
 
-els.btnSaveDsl.addEventListener('click', () => {
-  downloadBlob(new Blob([els.editor.value], { type: 'text/plain;charset=utf-8' }), 'animation.lsl');
-});
-
-els.btnLoadDsl.addEventListener('click', () => els.fileDsl.click());
-
-els.fileDsl.addEventListener('change', (e) => {
-  const file = e.target.files[0];
+function loadDslFromFile(event) {
+  const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (ev) => {
@@ -1434,47 +1495,29 @@ els.fileDsl.addEventListener('change', (e) => {
     compileAndRun();
   };
   reader.readAsText(file);
-  e.target.value = '';
-});
+  event.target.value = '';
+}
 
-els.btnResetDsl.addEventListener('click', () => {
+function resetToDemo() {
   els.editor.value = DEFAULT_DSL;
   compileAndRun();
-});
+}
 
-els.btnSaveLottie.addEventListener('click', () => {
-  if (!state.lottieData) return;
-  const json = JSON.stringify(state.lottieData, null, 2);
-  downloadBlob(new Blob([json], { type: 'application/json' }), 'animation.lottie.json');
-});
+const CLICK_HANDLERS = [
+  [els.btnCompile, compileAndRun],
+  [els.btnSaveDsl, saveDslFile],
+  [els.btnLoadDsl, () => els.fileDsl.click()],
+  [els.btnResetDsl, resetToDemo],
+  [els.btnSaveLottie, saveLottieJson],
+  [els.btnPlay, togglePlayback],
+  [els.btnExport, exportVideo],
+];
+for (const [element, handler] of CLICK_HANDLERS) element.addEventListener('click', handler);
 
-els.btnPlay.addEventListener('click', () => {
-  if (!state.anim || state.isExporting) return;
-  state.isPlaying ? pausePlayback() : resumePlayback();
-});
-
-els.scrubber.addEventListener('input', () => {
-  if (!state.anim || state.isExporting) return;
-  pausePlayback();
-  state.anim.goToAndStop(Number(els.scrubber.value), true);
-  updateTimeUI();
-});
-
-els.tabPreview.addEventListener('click', () => {
-  els.tabPreview.classList.add('active');
-  els.tabRaw.classList.remove('active');
-  els.stageWrap.style.display = 'flex';
-  els.rawJson.style.display = 'none';
-});
-
-els.tabRaw.addEventListener('click', () => {
-  els.tabRaw.classList.add('active');
-  els.tabPreview.classList.remove('active');
-  els.stageWrap.style.display = 'none';
-  els.rawJson.style.display = 'block';
-});
-
-els.btnExport.addEventListener('click', exportVideo);
+els.fileDsl.addEventListener('change', loadDslFromFile);
+els.scrubber.addEventListener('input', onScrubberInput);
+els.tabPreview.addEventListener('click', () => switchTab('preview'));
+els.tabRaw.addEventListener('click', () => switchTab('raw'));
 
 els.editor.addEventListener('keydown', (e) => {
   if (e.code === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -1487,8 +1530,11 @@ window.addEventListener('resize', () => {
   if (state.lottieData) fitStageBox(state.lottieData.w, state.lottieData.h);
 });
 
+/* ---------- Инициализация ---------- */
+
 els.editor.value = localStorage.getItem(STORAGE_KEY) || DEFAULT_DSL;
 compileAndRun();
+
 </script>
 </body>
 </html>
