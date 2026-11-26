@@ -520,47 +520,74 @@ function hexToLottieColor(hex) {
 }
 
 function buildKeyframes(events, initialVal, fps, isArray) {
-const sorted = events.slice().sort(function(a, b) { return a.t - b.t; });
-if (sorted.length === 0) {
-return { a: 0, k: isArray ? initialVal.slice() : initialVal };
+  const sorted = events.slice().sort(function(a, b) { return a.t - b.t; });
+  if (sorted.length === 0) {
+    return { a: 0, k: isArray ? initialVal.slice() : initialVal };
+  }
+
+  const kf = [];
+  let curVal = initialVal;
+  const lin = EASING_MAP.linear;
+
+  for (const ev of sorted) {
+    const startFrame = Math.round(ev.t * fps);
+    const durFrames = Math.round(ev.dur * fps);
+    const endFrame = startFrame + durFrames;
+    const ease = EASING_MAP[ev.ease] || EASING_MAP.inOut;
+
+    if (durFrames <= 0) {
+      if (startFrame > 0) {
+        const prevFrame = startFrame - 1;
+        const last = kf.length > 0 ? kf.at(kf.length - 1) : null;
+        if (!last || last.t < prevFrame) {
+          kf.push({
+            t: prevFrame,
+            s: isArray ? curVal.slice() : Array.of(curVal),
+            i: lin.i,
+            o: lin.o
+          });
+        }
+      }
+      const lastNow = kf.length > 0 ? kf.at(kf.length - 1) : null;
+      if (lastNow && lastNow.t === startFrame) {
+        lastNow.s = isArray ? ev.val.slice() : Array.of(ev.val);
+        lastNow.i = lin.i;
+        lastNow.o = lin.o;
+      } else {
+        kf.push({
+          t: startFrame,
+          s: isArray ? ev.val.slice() : Array.of(ev.val),
+          i: lin.i,
+          o: lin.o
+        });
+      }
+      curVal = ev.val;
+    } else {
+      const last = kf.length > 0 ? kf.at(kf.length - 1) : null;
+      if (!last || last.t < startFrame) {
+        kf.push({
+          t: startFrame,
+          s: isArray ? curVal.slice() : Array.of(curVal),
+          i: ease.i,
+          o: ease.o
+        });
+      } else if (last.t === startFrame) {
+        last.i = ease.i;
+        last.o = ease.o;
+      }
+      kf.push({
+        t: endFrame,
+        s: isArray ? ev.val.slice() : Array.of(ev.val),
+        i: lin.i,
+        o: lin.o
+      });
+      curVal = ev.val;
+    }
+  }
+
+  return { a: 1, k: kf };
 }
-const kf = [];
-let curVal = initialVal;
-for (const ev of sorted) {
-const startFrame = Math.round(ev.t * fps);
-const durFrames = Math.round(ev.dur * fps);
-const endFrame = startFrame + durFrames;
-const ease = EASING_MAP[ev.ease] || EASING_MAP.inOut;
-if (durFrames <= 0) {
-kf.push({
-t: startFrame,
-s: isArray ? ev.val.slice() : Array.of(ev.val),
-h: 1
-});
-curVal = ev.val;
-} else {
-const last = kf.length > 0 ? kf.at(kf.length - 1) : null;
-if (!last || last.t < startFrame) {
-kf.push({
-t: startFrame,
-s: isArray ? curVal.slice() : Array.of(curVal),
-i: ease.i,
-o: ease.o
-});
-} else if (last.t === startFrame) {
-delete last.h;
-last.i = ease.i;
-last.o = ease.o;
-}
-kf.push({
-t: endFrame,
-s: isArray ? ev.val.slice() : Array.of(ev.val)
-});
-curVal = ev.val;
-}
-}
-return { a: 1, k: kf };
-}
+
 function buildCameraRigLayer(comp, cameraUpdates, fps, totalFrames, camInd) {
 const initX = comp.width / 2;
 const initY = comp.height / 2;
