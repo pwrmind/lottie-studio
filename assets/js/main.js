@@ -264,7 +264,7 @@ function stripParens(str) {
 function parseValue(raw) {
   const s = raw.trim();
   if ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith('"') && s.endsWith('"'))) {
-    return s.slice(1, -1);
+    return s.slice(1, -1).replace(/\\n/g, '\n');
   }
   if (s.startsWith('[') && s.endsWith(']')) {
     const inner = s.slice(1, -1).trim();
@@ -740,7 +740,7 @@ function createTextLayer(layer, channels, ind, totalFrames, fps, camInd) {
   const makeDocState = (txt, hexColor) => ({
     s: size,
     f: fontName,
-    t: String(txt),
+    t: String(txt).replace(/\r?\n/g, '\r'),
     j: 2,
     tr: 0,
     lh: size * 1.2,
