@@ -646,9 +646,11 @@ function buildKeyframes(events, initialVal, fps, isArray) {
 
 /** Разбирает UPDATE-события одного слоя на анимационные каналы. */
 function collectLayerEvents(layer, updates) {
-  const channels = { pos: [], scale: [], rot: [], op: [], color: [] };
+  const channels = { pos: [], scale: [], rot: [], op: [], color: [], size: [], radius: [] };
   let curX = layer.x;
   let curY = layer.y;
+  let curW = layer.width;
+  let curH = layer.height;
 
   for (const u of updates) {
     if (u.targetIds && !u.targetIds.includes(layer.id)) continue;
@@ -658,6 +660,14 @@ function collectLayerEvents(layer, updates) {
       curX = set.x !== undefined ? set.x : curX;
       curY = set.y !== undefined ? set.y : curY;
       channels.pos.push({ t: u.t, dur: u.dur, ease: u.ease, val: [curX, curY, 0] });
+    }
+    if (set.width !== undefined || set.height !== undefined) {
+      curW = set.width !== undefined ? set.width : curW;
+      curH = set.height !== undefined ? set.height : curH;
+      channels.size.push({ t: u.t, dur: u.dur, ease: u.ease, val: [curW, curH] });
+    }
+    if (set.radius !== undefined) {
+      channels.radius.push({ t: u.t, dur: u.dur, ease: u.ease, val: set.radius });
     }
     if (set.scale !== undefined) {
       const sc = set.scale;
@@ -693,9 +703,18 @@ function layerTransform(layer, channels, fps) {
 }
 
 function createShapeLayer(layer, channels, ind, totalFrames, fps, camInd) {
+  const sizeTrack = buildKeyframes(channels.size, [layer.width, layer.height], fps, true);
+
   const geometry = layer.type === 'ellipse'
-    ? { ty: 'el', d: 1, s: { a: 0, k: [layer.width, layer.height] }, p: { a: 0, k: [0, 0] }, nm: 'Ellipse' }
-    : { ty: 'rc', d: 1, s: { a: 0, k: [layer.width, layer.height] }, p: { a: 0, k: [0, 0] }, r: { a: 0, k: layer.radius || 0 }, nm: 'Rectangle' };
+    ? { ty: 'el', d: 1, s: sizeTrack, p: { a: 0, k: [0, 0] }, nm: 'Ellipse' }
+    : {
+        ty: 'rc',
+        d: 1,
+        s: sizeTrack,
+        p: { a: 0, k: [0, 0] },
+        r: buildKeyframes(channels.radius, layer.radius || 0, fps, false),
+        nm: 'Rectangle',
+      };
 
   return {
     ...createBaseLayer(layer.id, layerTransform(layer, channels, fps), ind, totalFrames, camInd, layer.fixed),
