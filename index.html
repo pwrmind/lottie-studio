@@ -277,7 +277,7 @@
 'use strict';
 
 /* ============================================================================
- * 1. ДЕМО-СЦЕНАРИЙ С БОЛЬШИМ МИРОМ И УПРАВЛЕНИЕМ КАМЕРОЙ
+ * 1. ДЕМО-СЦЕНАРИЙ С БОЛЬШИМ МИРОМ, КАМЕРОЙ И ШРИФТАМИ
  * ============================================================================ */
 const DEFAULT_DSL = [
   "-- Окно вывода камеры (вертикальный кадр 540x960)",
@@ -296,10 +296,11 @@ const DEFAULT_DSL = [
   "  ('target',   'rect',    1100, 520, 140,  140,  '#a855f7', 24, 100),",
   "  ('finish',   'ellipse', 1850, 520, 110,  110,  '#22c55e', 0,  100);",
   "",
-  "INSERT INTO layers (id, type, text, x, y, size, color, opacity) VALUES",
-  "  ('lbl1', 'text', 'СЦЕНА 1 · СТАРТ',    350,  220, 24, '#94a3b8', 100),",
-  "  ('lbl2', 'text', 'СЦЕНА 2 · НАЕЗД',    1100, 220, 24, '#c084fc', 100),",
-  "  ('lbl3', 'text', 'СЦЕНА 3 · КАТ',      1850, 220, 24, '#4ade80', 100);",
+  "-- Текстовые слои с указанием шрифтов (Google Fonts или системные)",
+  "INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES",
+  "  ('lbl1', 'text', 'СЦЕНА 1 · СТАРТ', 'Kablammo',       350,  220, 26, '#94a3b8', 100),",
+  "  ('lbl2', 'text', 'СЦЕНА 2 · НАЕЗД', 'Playpen Sans', 1100, 220, 28, '#c084fc', 100),",
+  "  ('lbl3', 'text', 'СЦЕНА 3 · КАТ',   'Comforter',      1850, 220, 24, '#4ade80', 100);",
   "",
   "-- 1. Герой начинает движение из Сцены 1 в Сцену 2, камера плавно ведёт его",
   "UPDATE layers SET x = 1100                         WHERE id = 'actor'  AT 0.8 WITH (duration = 2.4, ease = 'inOut');",
@@ -321,7 +322,7 @@ const DEFAULT_DSL = [
 ].join('\n');
 
 /* ============================================================================
- * 2. ПАРСЕР SQL-DSL (С ПОДДЕРЖКОЙ UPDATE camera)
+ * 2. ПАРСЕР SQL-DSL (С ПОДДЕРЖКОЙ UPDATE camera И ПОЛЯ font)
  * ============================================================================ */
 function splitTopLevel(str, sep) {
   sep = sep || ',';
@@ -424,7 +425,7 @@ function parseDSL(sqlText) {
         const rowObj = {
           type: 'rect', x: 0, y: 0, width: 100, height: 100,
           scale: 100, rotation: 0, opacity: 100, color: '#ffffff',
-          radius: 0, text: '', size: 24, fixed: false
+          radius: 0, text: '', size: 24, font: 'Arial', fixed: false
         };
         cols.forEach(function(c, i) { rowObj[c] = vals.at(i); });
         if (!rowObj.id) throw new Error('У каждого слоя в INSERT должен быть указан id');
@@ -497,7 +498,7 @@ function parseDSL(sqlText) {
 }
 
 /* ============================================================================
- * 3. КОМПИЛЯТОР В LOTTIE JSON (С 2D-КАМЕРОЙ ЧЕРЕЗ NULL-СЛОЙ)
+ * 3. КОМПИЛЯТОР В LOTTIE JSON (С 2D-КАМЕРОЙ И ДИНАМИЧЕСКИМИ ШРИФТАМИ)
  * ============================================================================ */
 const EASING_MAP = {
   linear: { i: { x: Array.of(0),    y: Array.of(1) }, o: { x: Array.of(0),    y: Array.of(0) } },
@@ -511,83 +512,78 @@ function hexToLottieColor(hex) {
   if (c.length === 3) c = c.split('').map(function(x) { return x + x; }).join('');
   const num = parseInt(c, 16);
   if (isNaN(num)) return Array.of(1, 1, 1, 1);
-  return Array.of(
-    +(((num >> 16) & 255) / 255).toFixed(4),
-    +(((num >> 8) & 255) / 255).toFixed(4),
-    +((num & 255) / 255).toFixed(4),
-    1
-  );
-}
 
+return Array.of(
++(((num >> 16) & 255) / 255).toFixed(4),
++(((num >> 8) & 255) / 255).toFixed(4),
++((num & 255) / 255).toFixed(4),
+1
+);
+}
 function buildKeyframes(events, initialVal, fps, isArray) {
-  const sorted = events.slice().sort(function(a, b) { return a.t - b.t; });
-  if (sorted.length === 0) {
-    return { a: 0, k: isArray ? initialVal.slice() : initialVal };
-  }
-
-  const kf = [];
-  let curVal = initialVal;
-  const lin = EASING_MAP.linear;
-
-  for (const ev of sorted) {
-    const startFrame = Math.round(ev.t * fps);
-    const durFrames = Math.round(ev.dur * fps);
-    const endFrame = startFrame + durFrames;
-    const ease = EASING_MAP[ev.ease] || EASING_MAP.inOut;
-
-    if (durFrames <= 0) {
-      if (startFrame > 0) {
-        const prevFrame = startFrame - 1;
-        const last = kf.length > 0 ? kf.at(kf.length - 1) : null;
-        if (!last || last.t < prevFrame) {
-          kf.push({
-            t: prevFrame,
-            s: isArray ? curVal.slice() : Array.of(curVal),
-            i: lin.i,
-            o: lin.o
-          });
-        }
-      }
-      const lastNow = kf.length > 0 ? kf.at(kf.length - 1) : null;
-      if (lastNow && lastNow.t === startFrame) {
-        lastNow.s = isArray ? ev.val.slice() : Array.of(ev.val);
-        lastNow.i = lin.i;
-        lastNow.o = lin.o;
-      } else {
-        kf.push({
-          t: startFrame,
-          s: isArray ? ev.val.slice() : Array.of(ev.val),
-          i: lin.i,
-          o: lin.o
-        });
-      }
-      curVal = ev.val;
-    } else {
-      const last = kf.length > 0 ? kf.at(kf.length - 1) : null;
-      if (!last || last.t < startFrame) {
-        kf.push({
-          t: startFrame,
-          s: isArray ? curVal.slice() : Array.of(curVal),
-          i: ease.i,
-          o: ease.o
-        });
-      } else if (last.t === startFrame) {
-        last.i = ease.i;
-        last.o = ease.o;
-      }
-      kf.push({
-        t: endFrame,
-        s: isArray ? ev.val.slice() : Array.of(ev.val),
-        i: lin.i,
-        o: lin.o
-      });
-      curVal = ev.val;
-    }
-  }
-
-  return { a: 1, k: kf };
+const sorted = events.slice().sort(function(a, b) { return a.t - b.t; });
+if (sorted.length === 0) {
+return { a: 0, k: isArray ? initialVal.slice() : initialVal };
 }
-
+const kf = [];
+let curVal = initialVal;
+const lin = EASING_MAP.linear;
+for (const ev of sorted) {
+const startFrame = Math.round(ev.t * fps);
+const durFrames = Math.round(ev.dur * fps);
+const endFrame = startFrame + durFrames;
+const ease = EASING_MAP[ev.ease] || EASING_MAP.inOut;
+if (durFrames <= 0) {
+if (startFrame > 0) {
+const prevFrame = startFrame - 1;
+const last = kf.length > 0 ? kf.at(kf.length - 1) : null;
+if (!last || last.t < prevFrame) {
+kf.push({
+t: prevFrame,
+s: isArray ? curVal.slice() : Array.of(curVal),
+i: lin.i,
+o: lin.o
+});
+}
+}
+const lastNow = kf.length > 0 ? kf.at(kf.length - 1) : null;
+if (lastNow && lastNow.t === startFrame) {
+lastNow.s = isArray ? ev.val.slice() : Array.of(ev.val);
+lastNow.i = lin.i;
+lastNow.o = lin.o;
+} else {
+kf.push({
+t: startFrame,
+s: isArray ? ev.val.slice() : Array.of(ev.val),
+i: lin.i,
+o: lin.o
+});
+}
+curVal = ev.val;
+} else {
+const last = kf.length > 0 ? kf.at(kf.length - 1) : null;
+if (!last || last.t < startFrame) {
+kf.push({
+t: startFrame,
+s: isArray ? curVal.slice() : Array.of(curVal),
+i: ease.i,
+o: ease.o
+});
+} else if (last.t === startFrame) {
+last.i = ease.i;
+last.o = ease.o;
+}
+kf.push({
+t: endFrame,
+s: isArray ? ev.val.slice() : Array.of(ev.val),
+i: lin.i,
+o: lin.o
+});
+curVal = ev.val;
+}
+}
+return { a: 1, k: kf };
+}
 function buildCameraRigLayer(comp, cameraUpdates, fps, totalFrames, camInd) {
 const initX = comp.width / 2;
 const initY = comp.height / 2;
@@ -616,12 +612,11 @@ return {
 ddd: 0,
 ind: camInd,
 nm: 'CAMERA_RIG',
-ty: 3, // Null layer
+ty: 3,
 sr: 1,
 ks: {
 o: { a: 0, k: 0 },
 r: { a: 0, k: 0 },
-// Камера всегда проецирует свою точку привязки (Anchor) в центр экрана (Position)
 p: { a: 0, k: Array.of(comp.width / 2, comp.height / 2, 0) },
 a: buildKeyframes(anchorEvents, Array.of(initX, initY, 0), fps, true),
 s: buildKeyframes(scaleEvents, Array.of(100, 100, 100), fps, true)
@@ -641,6 +636,7 @@ const cameraUpdates = parsed.cameraUpdates || [];
 const fps = comp.fps || 60;
 const totalFrames = Math.max(1, Math.round((comp.duration || 5) * fps));
 const lottieLayers = [];
+const usedFonts = new Set();
 const CAM_IND = 9999;
 let ind = 1;
 const layerList = Array.from(layers.values()).reverse();
@@ -695,11 +691,12 @@ op: totalFrames,
 st: 0,
 bm: 0
 };
-// Если слой не помечен как fixed = true (HUD), привязываем его к камере
 if (!layer.fixed) {
 baseLayer.parent = CAM_IND;
 }
 if (layer.type === 'text') {
+const fontName = String(layer.font || 'Arial').trim() || 'Arial';
+usedFonts.add(fontName);
 lottieLayers.push(Object.assign({}, baseLayer, {
 ty: 5,
 t: {
@@ -707,7 +704,7 @@ d: {
 k: Array.of({
 s: {
 s: layer.size || 24,
-f: 'Arial',
+f: fontName,
 t: String(layer.text || ''),
 j: 2,
 tr: 0,
@@ -769,8 +766,16 @@ nm: 'Group'
 }));
 }
 }
-// Добавляем управляющий слой камеры в конец списка слоёв
 lottieLayers.push(buildCameraRigLayer(comp, cameraUpdates, fps, totalFrames, CAM_IND));
+if (usedFonts.size === 0) usedFonts.add('Arial');
+const fontsList = Array.from(usedFonts).map(function(fName) {
+return {
+fName: fName,
+fFamily: fName,
+fStyle: 'Regular',
+ascent: 75
+};
+});
 return {
 v: '5.12.2',
 fr: fps,
@@ -782,19 +787,78 @@ nm: 'SQL_DSL_Camera_Animation',
 ddd: 0,
 assets: new Array(),
 fonts: {
-list: Array.of({
-fName: 'Arial',
-fFamily: 'Arial',
-fStyle: 'Regular',
-ascent: 75
-})
+list: fontsList
 },
 layers: lottieLayers
 };
 }
 /* ============================================================================
 • 
-	4. UI, ПЛЕЕР И ЭКСПОРТ
+	4. ЗАГРУЗЧИК ШРИФТОВ (GOOGLE FONTS + BASE64 ДЛЯ ЭКСПОРТА В ВИДЕО)
+• ============================================================================ */
+const SYSTEM_FONTS = new Set([
+'arial', 'helvetica', 'times new roman', 'courier new',
+'georgia', 'verdana', 'tahoma', 'trebuchet ms', 'impact',
+'sans-serif', 'serif', 'monospace', 'cursive', 'fantasy'
+]);
+const fontCssCache = new Map();
+
+async function ensureFontsLoaded(fontsList) {
+  for (const fontObj of fontsList) {
+    const family = fontObj.fFamily;
+    if (!family || SYSTEM_FONTS.has(family.toLowerCase()) || fontCssCache.has(family)) {
+      continue;
+    }
+
+    try {
+      const formattedFamily = encodeURIComponent(family).replace(/%20/g, '+');
+      const url = 'https://fonts.googleapis.com/css?family=' + formattedFamily + '&display=swap';
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      let cssText = await res.text();
+
+      // Подключаем CSS на страницу для превью
+      const styleTag = document.createElement('style');
+      styleTag.setAttribute('data-lottie-font', family);
+      styleTag.textContent = cssText;
+      document.head.appendChild(styleTag);
+
+      // Заменяем все внешние url(...) в CSS на Base64 data-URL для рендера в Canvas/Video
+      const urlMatches = Array.from(cssText.matchAll(/url\((https:\/\/[^)]+)\)/g));
+      let embeddedCss = cssText;
+
+      for (const m of urlMatches) {
+        const fontFileUrl = m[1];
+        try {
+          const fontRes = await fetch(fontFileUrl);
+          if (!fontRes.ok) continue;
+          const blob = await fontRes.blob();
+          const dataUrl = await new Promise(function(resolve) {
+            const reader = new FileReader();
+            reader.onloadend = function() { resolve(reader.result); };
+            reader.readAsDataURL(blob);
+          });
+          embeddedCss = embeddedCss.split(fontFileUrl).join(dataUrl);
+        } catch (innerErr) {
+          console.warn('Не удалось встроить файл шрифта:', fontFileUrl, innerErr);
+        }
+      }
+
+      fontCssCache.set(family, embeddedCss);
+
+      // Ждём фактической готовности шрифта в браузере
+      if (document.fonts && document.fonts.load) {
+        await document.fonts.load('16px "' + family + '"');
+      }
+    } catch (e) {
+      console.warn('Шрифт не найден в Google Fonts (будет использован системный):', family, e);
+    }
+  }
+}
+
+/* ============================================================================
+• 
+	5. UI, ПЛЕЕР И ЭКСПОРТ
 • ============================================================================ */
 const STORAGE_KEY = 'sql_lottie_studio:dsl';
 const editor = document.getElementById('dsl-editor');
@@ -830,13 +894,16 @@ const fps = currentLottieData.fr;
 scrubber.value = Math.round(frame);
 timecode.textContent = (frame / fps).toFixed(2) + ' / ' + (total / fps).toFixed(2) + 's';
 }
-function compileAndRun() {
+async function compileAndRun() {
 try {
 if (typeof lottie === 'undefined') {
 throw new Error('Библиотека lottie-web не загружена. Проверьте подключение к CDN.');
 }
 const parsed = parseDSL(editor.value);
-currentLottieData = compileToLottie(parsed);
+const compiled = compileToLottie(parsed);
+// Подгружаем шрифты до инициализации плеера
+await ensureFontsLoaded(compiled.fonts.list);
+currentLottieData = compiled;
 localStorage.setItem(STORAGE_KEY, editor.value);
 errorBox.classList.remove('visible');
 errorBox.textContent = '';
@@ -939,119 +1006,107 @@ e.preventDefault();
 compileAndRun();
 }
 });
-
 /* ============================================================================
- * 5. ЭКСПОРТ ВИДЕО НАПРЯМУЮ ИЗ SVG-РЕНДЕРА (100% СОВПАДЕНИЕ С ПРЕВЬЮ)
- * ============================================================================ */
+• 
+	6. ЭКСПОРТ ВИДЕО НАПРЯМУЮ ИЗ SVG-РЕНДЕРА (С ВШИТЫМИ ШРИФТАМИ)
+• ============================================================================ */
 document.getElementById('btn-export-video').addEventListener('click', async function() {
-  if (!currentLottieData || !anim || isExporting) return;
-
-  const mimeCandidates = Array.of(
-    'video/mp4;codecs="avc1.42E01E"',
-    'video/mp4',
-    'video/webm;codecs=vp8',
-    'video/webm'
-  );
-  const mime = mimeCandidates.find(function(m) {
-    return window.MediaRecorder && MediaRecorder.isTypeSupported(m);
-  });
-  if (!mime) {
-    alert('Ваш браузер не поддерживает MediaRecorder для записи видео.');
-    return;
-  }
-
-  // Убеждаемся, что вкладка превью активна, чтобы SVG рендерился корректно
-  tabPreview.click();
-
-  isExporting = true;
-  anim.pause();
-  isPlaying = false;
-  btnPlay.textContent = '▶ Старт';
-  recBadge.classList.add('on');
-  document.getElementById('btn-export-video').disabled = true;
-
-  const w = currentLottieData.w;
-  const h = currentLottieData.h;
-  const fps = currentLottieData.fr;
-  const totalFrames = currentLottieData.op;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  const serializer = new XMLSerializer();
-
-  // Вспомогательная функция: переносит текущий кадр SVG на Canvas
-  function drawSvgFrameToCanvas() {
-    return new Promise(function(resolve) {
-      const svgEl = lottieBox.querySelector('svg');
-      if (!svgEl) { resolve(); return; }
-
-      const clone = svgEl.cloneNode(true);
-      clone.setAttribute('xmlns', 'http://w3.org');
-      clone.setAttribute('width', w);
-      clone.setAttribute('height', h);
-
-      const svgStr = serializer.serializeToString(clone);
-      const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
-      const img = new Image();
-      img.onload = function() {
-        ctx.clearRect(0, 0, w, h);
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve();
-      };
-      img.onerror = function() { resolve(); };
-      img.src = url;
-    });
-  }
-
-  // Рисуем 0-й кадр до старта записи
-  anim.goToAndStop(0, true);
-  await drawSvgFrameToCanvas();
-
-  const stream = canvas.captureStream(fps);
-  const recorder = new MediaRecorder(stream, {
-    mimeType: mime,
-    videoBitsPerSecond: 8000000
-  });
-
-  const chunks = [];
-  recorder.ondataavailable = function(e) {
-    if (e.data && e.data.size > 0) chunks.push(e.data);
-  };
-
-  const donePromise = new Promise(function(resolve) {
-    recorder.onstop = resolve;
-  });
-
-  recorder.start(100);
-
-  const frameDelay = 1000 / fps;
-  for (let f = 0; f < totalFrames; f++) {
-    anim.goToAndStop(f, true);
-    await drawSvgFrameToCanvas();
-    scrubber.value = f;
-    timecode.textContent = (f / fps).toFixed(2) + ' / ' + (totalFrames / fps).toFixed(2) + 's';
-    await new Promise(function(r) { setTimeout(r, frameDelay); });
-  }
-
-  await new Promise(function(r) { setTimeout(r, 150); });
-  recorder.stop();
-  await donePromise;
-
-  const ext = mime.includes('mp4') ? 'mp4' : 'webm';
-  const blob = new Blob(chunks, { type: mime });
-  downloadBlob(blob, 'lottie_export.' + ext);
-
-  isExporting = false;
-  recBadge.classList.remove('on');
-  document.getElementById('btn-export-video').disabled = false;
-  anim.play();
-  isPlaying = true;
-  btnPlay.textContent = '⏸ Пауза';
+if (!currentLottieData || !anim || isExporting) return;
+const mimeCandidates = Array.of(
+'video/mp4;codecs="avc1.42E01E"',
+'video/mp4',
+'video/webm;codecs=vp8',
+'video/webm'
+);
+const mime = mimeCandidates.find(function(m) {
+return window.MediaRecorder && MediaRecorder.isTypeSupported(m);
 });
-
+if (!mime) {
+alert('Ваш браузер не поддерживает MediaRecorder для записи видео.');
+return;
+}
+tabPreview.click();
+isExporting = true;
+anim.pause();
+isPlaying = false;
+btnPlay.textContent = '▶ Старт';
+recBadge.classList.add('on');
+document.getElementById('btn-export-video').disabled = true;
+const w = currentLottieData.w;
+const h = currentLottieData.h;
+const fps = currentLottieData.fr;
+const totalFrames = currentLottieData.op;
+const canvas = document.createElement('canvas');
+canvas.width = w;
+canvas.height = h;
+const ctx = canvas.getContext('2d');
+const serializer = new XMLSerializer();
+function drawSvgFrameToCanvas() {
+return new Promise(function(resolve) {
+const svgEl = lottieBox.querySelector('svg');
+if (!svgEl) { resolve(); return; }
+const clone = svgEl.cloneNode(true);
+clone.setAttribute('xmlns', 'w3.org');
+clone.setAttribute('width', w);
+clone.setAttribute('height', h);
+// Вшиваем Base64-шрифты внутрь SVG, чтобы браузер не сбрасывал их при растеризации
+if (fontCssCache.size > 0) {
+const defs = document.createElementNS('w3.org', 'defs');
+const style = document.createElementNS('w3.org', 'style');
+style.textContent = Array.from(fontCssCache.values()).join('\n');
+defs.appendChild(style);
+clone.insertBefore(defs, clone.firstChild);
+}
+const svgStr = serializer.serializeToString(clone);
+const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
+const img = new Image();
+img.onload = function() {
+ctx.clearRect(0, 0, w, h);
+ctx.drawImage(img, 0, 0, w, h);
+resolve();
+};
+img.onerror = function() { resolve(); };
+img.src = url;
+});
+}
+anim.goToAndStop(0, true);
+await drawSvgFrameToCanvas();
+const stream = canvas.captureStream(fps);
+const recorder = new MediaRecorder(stream, {
+mimeType: mime,
+videoBitsPerSecond: 8000000
+});
+const chunks = [];
+recorder.ondataavailable = function(e) {
+if (e.data && e.data.size > 0) chunks.push(e.data);
+};
+const donePromise = new Promise(function(resolve) {
+recorder.onstop = resolve;
+});
+recorder.start(100);
+const frameDelay = 1000 / fps;
+for (let f = 0; f < totalFrames; f++) {
+anim.goToAndStop(f, true);
+await drawSvgFrameToCanvas();
+scrubber.value = f;
+timecode.textContent = (f / fps).toFixed(2) + ' / ' + (totalFrames / fps).toFixed(2) + 's';
+await new Promise(function(r) { setTimeout(r, frameDelay); });
+}
+await new Promise(function(r) { setTimeout(r, 150); });
+recorder.stop();
+await donePromise;
+const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+const blob = new Blob(chunks, { type: mime });
+downloadBlob(blob, 'lottie_export.' + ext);
+isExporting = false;
+recBadge.classList.remove('on');
+document.getElementById('btn-export-video').disabled = false;
+anim.play();
+isPlaying = true;
+btnPlay.textContent = '⏸ Пауза';
+});
 compileAndRun();
+
 </script>
 </body>
 </html>
