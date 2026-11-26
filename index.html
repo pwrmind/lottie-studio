@@ -391,7 +391,7 @@ if (!stmt) continue;
 const insMatch = stmt.match(/^INSERT\s+INTO\s+layers\s*\(([^)]+)\)\sVALUES\s(.+)$/is);
 if (insMatch) {
 const cols = splitTopLevel(insMatch[1], ',').map(c => c.trim());
-const rowsRaw = insMatch.trim();
+const rowsRaw = insMatch[2].trim();
 // Разбираем кортежи (...)
 const tuples = [];
 let depth = 0, start = -1, quote = null;
@@ -436,8 +436,8 @@ const updMatch = stmt.match(
 );
 if (updMatch) {
 const setObj = parseAssignments(updMatch[1]);
-const whereRaw = updMatch;
-const atTime = updMatch !== undefined ? parseFloat(updMatch) : 0;
+const whereRaw = updMatch[2];
+const atTime = updMatch[3] !== undefined ? parseFloat(updMatch[3]) : 0;
 const withObj = updMatch[4] ? parseAssignments(updMatch[4]) : {};
 let targetIds = null; // null = все слои
 if (whereRaw) {
@@ -469,16 +469,16 @@ return { comp, layers, updates };
 	3. КОМПИЛЯТОР В LOTTIE JSON (BODIMOVIN FORMAT)
 • ============================================================================ */
 const EASING_MAP = {
-linear: { i: { x:, y: [1] },       o: { x:, y: [0] } },
-in:     { i: { x:, y: [1] },       o: { x: [0.42], y: [0] } },
-out:    { i: { x: [0.58], y: [1] },    o: { x:, y: [0] } },
+linear: { i: { x: [1], y: [1] },       o: { x: [0], y: [0] } },
+in:     { i: { x: [1], y: [1] },       o: { x: [0.42], y: [0] } },
+out:    { i: { x: [0.58], y: [1] },    o: { x: [0], y: [0] } },
 inOut:  { i: { x: [0.42], y: [1] },    o: { x: [0.58], y: [0] } }
 };
 function hexToLottieColor(hex) {
 let c = String(hex).replace('#', '').trim();
 if (c.length === 3) c = c.split('').map(x => x + x).join('');
 const num = parseInt(c, 16);
-if (isNaN(num)) return;
+if (isNaN(num)) return [1, 1, 1, 1];
 return [
 +(((num >> 16) & 255) / 255).toFixed(4),
 +(((num >> 8) & 255) / 255).toFixed(4),
@@ -709,7 +709,7 @@ const frame = anim.currentFrame;
 const total = anim.totalFrames;
 const fps = currentLottieData.fr;
 scrubber.value = Math.round(frame);
-timecode.textContent = ${(frame / fps).toFixed(2)} / ${(total / fps).toFixed(2)}s;
+timecode.textContent = `${(frame / fps).toFixed(2)} / ${(total / fps).toFixed(2)}s`;
 }
 function compileAndRun() {
 try {
@@ -847,7 +847,7 @@ const fps = currentLottieData.fr;
 const totalFrames = currentLottieData.op;
 // Создаём скрытый контейнер и рендерим через canvas-рендерер lottie-web
 const offDiv = document.createElement('div');
-offDiv.style.cssText = position:fixed;left:-9999px;top:0;width:${w}px;height:${h}px;;
+offDiv.style.cssText = `position:fixed;left:-9999px;top:0;width:${w}px;height:${h}px;`;
 document.body.appendChild(offDiv);
 const offAnim = lottie.loadAnimation({
 container: offDiv,
@@ -871,7 +871,7 @@ for (let f = 0; f < totalFrames; f++) {
 offAnim.goToAndStop(f, true);
 if (track.requestFrame) track.requestFrame();
 scrubber.value = f;
-timecode.textContent = ${(f / fps).toFixed(2)} / ${(totalFrames / fps).toFixed(2)}s;
+timecode.textContent = `${(f / fps).toFixed(2)} / ${(totalFrames / fps).toFixed(2)}s`;
 await new Promise(r => setTimeout(r, frameDelay));
 }
 recorder.stop();
@@ -879,7 +879,7 @@ await donePromise;
 offAnim.destroy();
 offDiv.remove();
 const ext = mime.includes('mp4') ? 'mp4' : 'webm';
-downloadBlob(new Blob(chunks, { type: mime }), lottie_export.${ext});
+downloadBlob(new Blob(chunks, { type: mime }), `lottie_export.${ext}`);
 isExporting = false;
 recBadge.classList.remove('on');
 document.getElementById('btn-export-video').disabled = false;
