@@ -27,7 +27,7 @@ const DEFAULT_LAYER = {
   type: 'rect', x: 0, y: 0, width: 100, height: 100,
   scale: 100, rotation: 0, opacity: 100, color: '#ffffff',
   radius: 0, text: '', size: 24, font: 'Arial', fixed: false,
-  ip: 0, op: null,
+  ip: 0, op: null, d: '',
 };
 
 /** Значения композиции по умолчанию. */
@@ -68,29 +68,34 @@ INSERT INTO layers (id, type, fixed, x, y, width, height, color, radius, opacity
   ('hud_bar',    'rect', true, 270, 756, 12,  8,  '#2563EB', 4,  100);
 
 INSERT INTO layers (id, type, fixed, text, font, x, y, size, color, opacity) VALUES
-  ('hud_status', 'text', true, '01 / 04 · МОРФИНГ & БЕЗЬЕ', 'JetBrains Mono', 270, 102, 16, '#2563EB', 100);
+  ('hud_status', 'text', true, '01 / 04 · МОРФИНГ & SVG PATH', 'JetBrains Mono', 270, 102, 16, '#2563EB', 100);
 
 -- Глобальный прогресс-бар в нижней границе Safe Zone (y = 756)
 AT 0.0 UPDATE layers SET width = 450 WHERE id = 'hud_bar' WITH (duration = 17.8, ease = 'linear');
 
 -- ============================================================================
--- 1. СЦЕНА 1 [0.0s — 4.4s]: МОРФИНГ ГЕОМЕТРИИ + КРИВЫЕ БЕЗЬЕ
+-- 1. СЦЕНА 1 [0.0s — 4.4s]: МОРФИНГ ГЕОМЕТРИИ + ВЕКТОРНЫЙ SVG PATH
 -- ============================================================================
 INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
-  ('s1_badge', 'rect', 350, 178, 260, 36, '#DBEAFE', 18, 100),
+  ('s1_badge', 'rect', 350, 178, 280, 36, '#DBEAFE', 18, 100),
   ('s1_morph', 'rect', 350, 325, 132, 132, '#2563EB', 66, 100),
   ('s1_code_bg','rect', 350, 565, 410, 130, '#EFECE4', 16, 0);
 
+-- Векторная звезда (SVG path) появляется слева внутри раскрытой плашки
+INSERT INTO layers (id, type, x, y, width, height, color, opacity, scale, d) VALUES
+  ('s1_star', 'path', 226, 325, 36, 36, '#FBBF24', 0, 40, 'M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z');
+
 INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
-  ('s1_tag',   'text', 'AT 0.3 UPDATE layers',        'JetBrains Mono', 350, 184, 16, '#1D4ED8', 100),
-  ('s1_shape_t','text','LSL',                         'Montserrat',     350, 339, 44, '#FFFFFF', 100),
-  ('s1_head',  'text', 'Морфинг формы',               'Montserrat',     350, 455, 34, '#1C1B19', 100),
-  ('s1_c1',    'text', 'width · height · radius',     'JetBrains Mono', 350, 542, 18, '#1C1B19', 0),
-  ('s1_c2',    'text', 'ease = [0.22, 1, 0.36, 1]',   'JetBrains Mono', 350, 578, 16, '#2563EB', 0),
-  ('s1_c3',    'text', 'плавная физика без ключевых кадров', 'Montserrat', 350, 612, 16, '#4A4741', 0);
+  ('s1_tag',    'text', 'type = ''path'' + морфинг',    'JetBrains Mono', 350, 184, 16, '#1D4ED8', 100),
+  ('s1_shape_t','text', 'LSL',                          'Montserrat',     350, 339, 44, '#FFFFFF', 100),
+  ('s1_head',   'text', 'Геометрия и SVG Path',         'Montserrat',     350, 455, 32, '#1C1B19', 100),
+  ('s1_c1',     'text', 'rect · ellipse · path (SVG d)','JetBrains Mono', 350, 542, 17, '#1C1B19', 0),
+  ('s1_c2',     'text', 'ease = [0.22, 1, 0.36, 1]',    'JetBrains Mono', 350, 578, 16, '#2563EB', 0),
+  ('s1_c3',     'text', 'векторные иконки без внешних файлов', 'Montserrat', 350, 612, 16, '#4A4741', 0);
 
 AT 0.35 UPDATE layers SET width = 360, height = 104, radius = 24 WHERE id = 's1_morph' WITH (duration = 0.8, ease = [0.22, 1, 0.36, 1]);
-AT 0.55 UPDATE layers SET text = 'LSL STUDIO', size = 32         WHERE id = 's1_shape_t';
+AT 0.55 UPDATE layers SET text = 'LSL STUDIO', size = 30, x = 372  WHERE id = 's1_shape_t';
+AT 0.65 UPDATE layers SET opacity = 100, scale = 100, rotation = 360 WHERE id = 's1_star' WITH (duration = 0.7, ease = [0.22, 1, 0.36, 1]);
 AT 0.80 UPDATE layers SET opacity = 100 WHERE id IN ('s1_code_bg', 's1_c1', 's1_c2', 's1_c3') WITH (duration = 0.45, ease = 'out');
 AT 0.50 UPDATE camera SET zoom = 1.05 WITH (duration = 1.6, ease = 'inOut');
 
@@ -132,7 +137,7 @@ AT 7.8 UPDATE camera SET x = 1950, y = 480, zoom = 1.0 WITH (duration = 1.2, eas
 AT 9.1 DELETE FROM layers WHERE id LIKE 's2_%' OR id LIKE 'eq_%';
 
 -- ============================================================================
--- 3. СЦЕНА 3 [8.2s — 13.6s]: ЦИКЛЫ, ПОВТОРЫ И YOYO-МАЯТНИК
+-- 3. СЦЕНА 3 [8.2s — 13.6s]: ЦИКЛЫ, ПОВТОРЫ И YOYO-МАЯТНИК (на SVG path)
 -- ============================================================================
 AT 8.2 INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
   ('s3_badge',   'rect',    1950, 178, 280, 36,  '#D1FAE5', 18, 100),
@@ -140,10 +145,13 @@ AT 8.2 INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity
   ('yo_box',     'rect',    1950, 385, 120, 120, '#059669', 26, 100),
   ('s3_code_bg', 'rect',    1950, 585, 410, 104, '#EFECE4', 16, 100);
 
+-- Векторная иконка Rotate-Right (Font Awesome path) вместо текстового глифа
+AT 8.2 INSERT INTO layers (id, type, x, y, width, height, color, opacity, d) VALUES
+  ('yo_icon', 'path', 1950, 385, 52, 52, '#FFFFFF', 100, 'M463.5 224H472c13.3 0 24-10.7 24-24V72c0-9.7-5.8-18.5-14.8-22.2s-19.3-1.7-26.2 5.2L413.4 96.6c-87.6-86.5-228.7-86.2-315.8 1c-87.5 87.5-87.5 229.3 0 316.8s229.3 87.5 316.8 0c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0c-62.5 62.5-163.8 62.5-226.3 0s-62.5-163.8 0-226.3c62.2-62.2 162.7-62.5 225.3-1L327 183c-6.9 6.9-8.9 17.2-5.2 26.2s12.5 14.8 22.2 14.8H463.5z');
+
 AT 8.2 INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
   ('s3_tag',  'text', 'repeat = 3, yoyo = true',          'JetBrains Mono', 1950, 184, 16, '#047857', 100),
   ('s3_head', 'text', 'Циклы и маятник',                  'Montserrat',     1950, 248, 32, '#1C1B19', 100),
-  ('yo_icon', 'text', '↻',                                'Montserrat',     1950, 401, 46, '#FFFFFF', 100),
   ('s3_c1',   'text', 'WITH (duration = 0.8, repeat = 3, yoyo = true)', 'JetBrains Mono', 1950, 572, 15, '#1C1B19', 100),
   ('s3_c2',   'text', 'автоматический возврат в исходное состояние',    'Montserrat',     1950, 608, 16, '#4A4741', 100);
 
@@ -152,9 +160,9 @@ AT 8.7 UPDATE layers SET text = '03 / 04 · REPEAT & YOYO', color = '#059669' WH
 
 -- 3 цикла туда-обратно (9.0s + 3 * 0.8s = 11.4s)
 AT 9.0 UPDATE layers SET rotation = 90, radius = 60, scale = 114 WHERE id = 'yo_box'  WITH (duration = 0.8, ease = 'inOut', repeat = 3, yoyo = true);
-AT 9.0 UPDATE layers SET rotation = 180                          WHERE id = 'yo_icon' WITH (duration = 0.8, ease = 'inOut', repeat = 3, yoyo = true);
-AT 9.0 UPDATE layers SET width = 260, height = 260, opacity = 40 WHERE id = 'yo_ring' WITH (duration = 0.8, ease = 'inOut', repeat = 3, yoyo = true);
-AT 9.2 UPDATE camera SET zoom = 1.06                             WITH (duration = 1.2, ease = 'inOut', repeat = 1, yoyo = true);
+AT 9.0 UPDATE layers SET rotation = 180, width = 62, height = 62  WHERE id = 'yo_icon' WITH (duration = 0.8, ease = 'inOut', repeat = 3, yoyo = true);
+AT 9.0 UPDATE layers SET width = 260, height = 260, opacity = 40  WHERE id = 'yo_ring' WITH (duration = 0.8, ease = 'inOut', repeat = 3, yoyo = true);
+AT 9.2 UPDATE camera SET zoom = 1.06                              WITH (duration = 1.2, ease = 'inOut', repeat = 1, yoyo = true);
 
 -- Очистка DOM 3-й сцены сразу после монтажного ката
 AT 13.7 DELETE FROM layers WHERE id LIKE 's3_%' OR id LIKE 'yo_%';
@@ -168,26 +176,22 @@ AT 13.5 INSERT INTO layers (id, type, x, y, width, height, color, radius, opacit
   ('s4_info',  'rect', 2750, 585, 410, 104, '#EFECE4', 16, 0);
 
 AT 13.5 INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
-  ('s4_tag',   'text', 'AT 13.6 UPDATE camera ...',        'JetBrains Mono', 2750, 184, 16, '#B91C1C', 100),
-  ('s4_head',  'text', 'Кат камеры и экспорт',             'Montserrat',     2750, 248, 32, '#1C1B19', 100),
-  ('s4_sub',   'text', 'Мгновенная смена плана без duration','Montserrat',    2750, 284, 17, '#4A4741', 100),
-  ('s4_btn_t', 'text', 'JSON & WebM',                      'Montserrat',     2750, 430, 26, '#FFFFFF', 0),
-  ('s4_i1',    'text', '• Lottie JSON с 2D-камерой (CAMERA_RIG)', 'Montserrat', 2750, 570, 16, '#1C1B19', 0),
-  ('s4_i2',    'text', '• Покадровый рендер в WebM 60 fps',      'Montserrat', 2750, 604, 16, '#4A4741', 0);
-
+('s4_tag',   'text', 'AT 13.6 UPDATE camera ...',        'JetBrains Mono', 2750, 184, 16, '#B91C1C', 100),
+('s4_head',  'text', 'Кат камеры и экспорт',             'Montserrat',     2750, 248, 32, '#1C1B19', 100),
+('s4_sub',   'text', 'Мгновенная смена плана без duration','Montserrat',    2750, 284, 17, '#4A4741', 100),
+('s4_btn_t', 'text', 'JSON & WebM',                      'Montserrat',     2750, 430, 26, '#FFFFFF', 0),
+('s4_i1',    'text', '• Lottie JSON с 2D-камерой (CAMERA_RIG)', 'Montserrat', 2750, 570, 16, '#1C1B19', 0),
+('s4_i2',    'text', '• Покадровый рендер в WebM 60 fps',      'Montserrat', 2750, 604, 16, '#4A4741', 0);
 -- Мгновенный перескок камеры на 4-й экран (duration = 0)
 AT 13.6 UPDATE camera SET x = 2750, y = 480, zoom = 0.94;
 AT 13.6 UPDATE layers SET color = '#D95338' WHERE id = 'hud_bar';
 AT 13.6 UPDATE layers SET text = '04 / 04 · КАТ & ЭКСПОРТ', color = '#D95338' WHERE id = 'hud_status';
-
 -- Наезд камеры + морфинг круга в кнопку + появление карточки итогов
 AT 13.75 UPDATE camera SET x = 2750, y = 480, zoom = 1.08 WITH (duration = 1.5, ease = 'inOut');
-
 AT 13.75 UPDATE layers SET width = 360, height = 88, radius = 44 WHERE id = 's4_btn' WITH (duration = 0.7, ease = [0.22, 1, 0.36, 1]);
 AT 14.15 UPDATE layers SET opacity = 100 WHERE id IN ('s4_btn_t', 's4_info', 's4_i1', 's4_i2') WITH (duration = 0.45, ease = 'out');
 -- Финальная стабилизация плана [15.6s -> 17.0s]
 AT 15.6 UPDATE camera SET x = 2750, y = 480, zoom = 1.0 WITH (duration = 1.4, ease = 'inOut');
-
 `;
 
 /* ============================================================================
@@ -561,7 +565,7 @@ function resolveEase(easeSpec) {
 function buildKeyframes(events, initialVal, fps, isArray) {
   const make = (val) => (isArray ? val.slice() : [val]);
   const sorted = [...events].sort((a, b) => a.t - b.t);
-  if (!sorted.length) return { a: 0, k: make(initialVal) };
+  if (!sorted.length) return { a: 0, k: isArray ? initialVal.slice() : initialVal };
 
   // Разворачиваем repeat / yoyo в последовательность атомарных переходов
   const expanded = [];
@@ -618,6 +622,9 @@ function buildKeyframes(events, initialVal, fps, isArray) {
       push(endFrame, ev.val, LINEAR);
     }
     curVal = ev.val;
+  }
+  if (kf.length === 1) {
+    return { a: 0, k: isArray ? kf[0].s : kf[0].s[0] };
   }
   return { a: 1, k: kf };
 }
@@ -712,20 +719,224 @@ function layerTransform(layer, channels, fps) {
   };
 }
 
-/** Графический слой: прямоугольник или эллипс с заливкой и анимируемым размером. */
+/** Переводит SVG path (d) в массив Lottie-шейпов ('ty': 'sh'), нормализованных к 100×100. */
+function svgPathToLottieShapes(d) {
+  if (!d || typeof d !== 'string') return [];
+
+  const tokens = d.match(/[a-zA-Z]|[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?/gi) || [];
+  const subpaths = [];
+  let curPath = null;
+
+  let idx = 0, cmd = '', prevCmd = '';
+  let cx = 0, cy = 0, sx = 0, sy = 0, lastCtrlX = 0, lastCtrlY = 0;
+
+  const num = () => parseFloat(tokens[idx++]);
+  const hasNum = () => idx < tokens.length && !/^[a-zA-Z]$/.test(tokens[idx]);
+
+  const startSubpath = (x, y) => {
+    curPath = { closed: false, pts: [{ x, y, ix: 0, iy: 0, ox: 0, oy: 0 }] };
+    subpaths.push(curPath);
+    cx = sx = x; cy = sy = y;
+  };
+
+  const addCubic = (x1, y1, x2, y2, x, y) => {
+    if (!curPath) startSubpath(cx, cy);
+    const prev = curPath.pts[curPath.pts.length - 1];
+    prev.ox = x1 - cx;
+    prev.oy = y1 - cy;
+    curPath.pts.push({ x, y, ix: x2 - x, iy: y2 - y, ox: 0, oy: 0 });
+    cx = x; cy = y;
+  };
+
+  while (idx < tokens.length) {
+    if (/^[a-zA-Z]$/.test(tokens[idx])) cmd = tokens[idx++];
+    else if (cmd === 'M') cmd = 'L';
+    else if (cmd === 'm') cmd = 'l';
+
+    const isRel = cmd === cmd.toLowerCase();
+    const type = cmd.toUpperCase();
+
+    if (type === 'M') {
+      const x = num() + (isRel ? cx : 0), y = num() + (isRel ? cy : 0);
+      startSubpath(x, y);
+      lastCtrlX = cx; lastCtrlY = cy;
+    } else if (type === 'L') {
+      const x = num() + (isRel ? cx : 0), y = num() + (isRel ? cy : 0);
+      addCubic(cx, cy, x, y, x, y);
+      lastCtrlX = cx; lastCtrlY = cy;
+    } else if (type === 'H') {
+      const x = num() + (isRel ? cx : 0);
+      addCubic(cx, cy, x, cy, x, cy);
+      lastCtrlX = cx; lastCtrlY = cy;
+    } else if (type === 'V') {
+      const y = num() + (isRel ? cy : 0);
+      addCubic(cx, cy, cx, y, cx, y);
+      lastCtrlX = cx; lastCtrlY = cy;
+    } else if (type === 'C') {
+      const x1 = num() + (isRel ? cx : 0), y1 = num() + (isRel ? cy : 0);
+      const x2 = num() + (isRel ? cx : 0), y2 = num() + (isRel ? cy : 0);
+      const x  = num() + (isRel ? cx : 0), y  = num() + (isRel ? cy : 0);
+      addCubic(x1, y1, x2, y2, x, y);
+      lastCtrlX = x2; lastCtrlY = y2;
+    } else if (type === 'S') {
+      const x1 = (prevCmd === 'C' || prevCmd === 'S') ? 2 * cx - lastCtrlX : cx;
+      const y1 = (prevCmd === 'C' || prevCmd === 'S') ? 2 * cy - lastCtrlY : cy;
+      const x2 = num() + (isRel ? cx : 0), y2 = num() + (isRel ? cy : 0);
+      const x  = num() + (isRel ? cx : 0), y  = num() + (isRel ? cy : 0);
+      addCubic(x1, y1, x2, y2, x, y);
+      lastCtrlX = x2; lastCtrlY = y2;
+    } else if (type === 'Q') {
+      const qx = num() + (isRel ? cx : 0), qy = num() + (isRel ? cy : 0);
+      const x  = num() + (isRel ? cx : 0), y  = num() + (isRel ? cy : 0);
+      addCubic(
+        cx + (2 / 3) * (qx - cx), cy + (2 / 3) * (qy - cy),
+        x  + (2 / 3) * (qx - x),  y  + (2 / 3) * (qy - y),
+        x, y
+      );
+      lastCtrlX = qx; lastCtrlY = qy;
+    } else if (type === 'T') {
+      const qx = (prevCmd === 'Q' || prevCmd === 'T') ? 2 * cx - lastCtrlX : cx;
+      const qy = (prevCmd === 'Q' || prevCmd === 'T') ? 2 * cy - lastCtrlY : cy;
+      const x  = num() + (isRel ? cx : 0), y  = num() + (isRel ? cy : 0);
+      addCubic(
+        cx + (2 / 3) * (qx - cx), cy + (2 / 3) * (qy - cy),
+        x  + (2 / 3) * (qx - x),  y  + (2 / 3) * (qy - y),
+        x, y
+      );
+      lastCtrlX = qx; lastCtrlY = qy;
+    } else if (type === 'A') {
+      const rx = Math.abs(num()), ry = Math.abs(num());
+      const rot = num(), largeArc = num(), sweep = num();
+      const x = num() + (isRel ? cx : 0), y = num() + (isRel ? cy : 0);
+      for (const seg of arcToCubicCurves(cx, cy, x, y, rx, ry, rot, largeArc, sweep)) {
+        addCubic(seg[0], seg[1], seg[2], seg[3], seg[4], seg[5]);
+      }
+      lastCtrlX = cx; lastCtrlY = cy;
+    } else if (type === 'Z') {
+      if (curPath && curPath.pts.length > 1) {
+        curPath.closed = true;
+        const first = curPath.pts[0];
+        const last = curPath.pts[curPath.pts.length - 1];
+        if (Math.hypot(first.x - last.x, first.y - last.y) < 1e-4) {
+          first.ix = last.ix;
+          first.iy = last.iy;
+          curPath.pts.pop();
+        }
+      }
+      cx = sx; cy = sy;
+      lastCtrlX = cx; lastCtrlY = cy;
+    } else {
+      if (!hasNum()) idx++;
+    }
+    prevCmd = type;
+  }
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const sp of subpaths) {
+    for (const p of sp.pts) {
+      minX = Math.min(minX, p.x, p.x + p.ix, p.x + p.ox);
+      maxX = Math.max(maxX, p.x, p.x + p.ix, p.x + p.ox);
+      minY = Math.min(minY, p.y, p.y + p.iy, p.y + p.oy);
+      maxY = Math.max(maxY, p.y, p.y + p.iy, p.y + p.oy);
+    }
+  }
+  if (!isFinite(minX)) return [];
+
+  const rawW = Math.max(1e-5, maxX - minX);
+  const rawH = Math.max(1e-5, maxY - minY);
+  const midX = (minX + maxX) / 2;
+  const midY = (minY + maxY) / 2;
+  const scaleX = 100 / rawW;
+  const scaleY = 100 / rawH;
+  const r = (n) => +n.toFixed(3);
+
+  return subpaths.map((sp, i) => ({
+    ty: 'sh',
+    d: 1,
+    nm: 'Path ' + (i + 1),
+    ks: {
+      a: 0,
+      k: {
+        c: sp.closed,
+        v: sp.pts.map((p) => [r((p.x - midX) * scaleX), r((p.y - midY) * scaleY)]),
+        i: sp.pts.map((p) => [r(p.ix * scaleX), r(p.iy * scaleY)]),
+        o: sp.pts.map((p) => [r(p.ox * scaleX), r(p.oy * scaleY)]),
+      },
+    },
+  }));
+}
+
+/** Аппроксимация SVG-дуги (команда A) кубическими кривыми Безье. */
+function arcToCubicCurves(x1, y1, x2, y2, rx, ry, angleDeg, largeArcFlag, sweepFlag) {
+  if (rx === 0 || ry === 0 || (x1 === x2 && y1 === y2)) return [[x1, y1, x2, y2, x2, y2]];
+  const rad = (angleDeg * Math.PI) / 180;
+  const cos = Math.cos(rad), sin = Math.sin(rad);
+  const dx = (x1 - x2) / 2, dy = (y1 - y2) / 2;
+  const x1p = cos * dx + sin * dy, y1p = -sin * dx + cos * dy;
+
+  const rCheck = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry);
+  if (rCheck > 1) { const s = Math.sqrt(rCheck); rx *= s; ry *= s; }
+
+  const sign = largeArcFlag === sweepFlag ? -1 : 1;
+  const num = Math.max(0, rx * rx * ry * ry - rx * rx * y1p * y1p - ry * ry * x1p * x1p);
+  const den = rx * rx * y1p * y1p + ry * ry * x1p * x1p;
+  const sq = sign * Math.sqrt(num / den);
+  const cxp = sq * ((rx * y1p) / ry), cyp = sq * (-(ry * x1p) / rx);
+
+  const cx = cos * cxp - sin * cyp + (x1 + x2) / 2;
+  const cy = sin * cxp + cos * cyp + (y1 + y2) / 2;
+
+  const vecAngle = (ux, uy, vx, vy) => {
+    const dot = ux * vx + uy * vy;
+    const len = Math.hypot(ux, uy) * Math.hypot(vx, vy);
+    const ang = Math.acos(Math.max(-1, Math.min(1, dot / len)));
+    return ux * vy - uy * vx < 0 ? -ang : ang;
+  };
+
+  const theta1 = vecAngle(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry);
+  let dTheta = vecAngle((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry);
+  if (!sweepFlag && dTheta > 0) dTheta -= 2 * Math.PI;
+  if (sweepFlag && dTheta < 0) dTheta += 2 * Math.PI;
+
+  const segments = Math.ceil(Math.abs(dTheta) / (Math.PI / 2));
+  const delta = dTheta / segments;
+  const alpha = (4 / 3) * Math.tan(delta / 4);
+  const curves = [];
+
+  for (let i = 0; i < segments; i++) {
+    const t1 = theta1 + i * delta, t2 = t1 + delta;
+    const mapPt = (px, py) => [
+      cos * (rx * px) - sin * (ry * py) + cx,
+      sin * (rx * px) + cos * (ry * py) + cy,
+    ];
+    const c1 = mapPt(Math.cos(t1) - alpha * Math.sin(t1), Math.sin(t1) + alpha * Math.cos(t1));
+    const c2 = mapPt(Math.cos(t2) + alpha * Math.sin(t2), Math.sin(t2) - alpha * Math.cos(t2));
+    const ep = mapPt(Math.cos(t2), Math.sin(t2));
+    curves.push([c1[0], c1[1], c2[0], c2[1], ep[0], ep[1]]);
+  }
+  return curves;
+}
+
+/** Графический слой: прямоугольник, эллипс или произвольный SVG path. */
 function createShapeLayer(layer, channels, ind, totalFrames, fps, camInd) {
+  const isPath = layer.type === 'path';
   const sizeTrack = buildKeyframes(channels.size, [layer.width, layer.height], fps, true);
 
-  const geometry = layer.type === 'ellipse'
-    ? { ty: 'el', d: 1, s: sizeTrack, p: { a: 0, k: [0, 0] }, nm: 'Ellipse' }
-    : {
-        ty: 'rc',
-        d: 1,
-        s: sizeTrack,
-        p: { a: 0, k: [0, 0] },
-        r: buildKeyframes(channels.radius, layer.radius || 0, fps, false),
-        nm: 'Rectangle',
-      };
+  let geometries = [];
+  if (isPath) {
+    geometries = svgPathToLottieShapes(layer.d);
+  } else if (layer.type === 'ellipse') {
+    geometries = [{ ty: 'el', d: 1, s: sizeTrack, p: { a: 0, k: [0, 0] }, nm: 'Ellipse' }];
+  } else {
+    geometries = [{
+      ty: 'rc',
+      d: 1,
+      s: sizeTrack,
+      p: { a: 0, k: [0, 0] },
+      r: buildKeyframes(channels.radius, layer.radius || 0, fps, false),
+      nm: 'Rectangle',
+    }];
+  }
 
   return {
     ...createBaseLayer(layer, layerTransform(layer, channels, fps), ind, totalFrames, fps, camInd),
@@ -733,7 +944,7 @@ function createShapeLayer(layer, channels, ind, totalFrames, fps, camInd) {
     shapes: [{
       ty: 'gr',
       it: [
-        geometry,
+        ...geometries,
         {
           ty: 'fl',
           c: buildKeyframes(channels.color, hexToLottieColor(layer.color), fps, true),
@@ -746,7 +957,7 @@ function createShapeLayer(layer, channels, ind, totalFrames, fps, camInd) {
           ty: 'tr',
           p: { a: 0, k: [0, 0] },
           a: { a: 0, k: [0, 0] },
-          s: { a: 0, k: [100, 100] },
+          s: isPath ? sizeTrack : { a: 0, k: [100, 100] },
           r: { a: 0, k: 0 },
           o: { a: 0, k: 100 },
         },
