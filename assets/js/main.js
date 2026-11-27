@@ -27,6 +27,7 @@ const DEFAULT_LAYER = {
   type: 'rect', x: 0, y: 0, width: 100, height: 100,
   scale: 100, rotation: 0, opacity: 100, color: '#ffffff',
   radius: 0, text: '', size: 24, font: 'Arial', fixed: false,
+  ip: 0, op: null,
 };
 
 /** Значения композиции по умолчанию. */
@@ -41,154 +42,151 @@ const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
  * ========================================================================== */
 
 const DEFAULT_DSL = `
+-- ============================================================================
+-- ☀️ LSL STUDIO — САМОПРЕЗЕНТАЦИЯ ВОЗМОЖНОСТЕЙ (LIGHT EDITION)
+-- Формат: 540x960 (9:16, k=0.5 от 1080x1920), 60 fps, длительность 18.0 с
+-- Сетка Safe Zone: x 35–505, y 75–770 | Типографика: от 15 px до 56 px
+-- ============================================================================
+
+UPDATE composition SET width = 540, height = 960, fps = 60, duration = 18.0;
+
+AT 0.0 UPDATE camera SET x = 350, y = 480, zoom = 1.0;
 
 -- ============================================================================
--- 🎬 LSL STUDIO — САМОПРЕЗЕНТАЦИЯ ВОЗМОЖНОСТЕЙ В РЕАЛЬНОМ ВРЕМЕНИ
--- Формат: 540x960 (вертикальный), длительность: 14.0 сек
--- Каждая фича подписывается в HUD и сразу демонстрируется на сцене
--- ============================================================================
-
-UPDATE composition SET width = 540, height = 960, fps = 60, duration = 14.0;
-
--- Начальная точка камеры (Сцена 1)
-UPDATE camera SET x = 350, y = 480, zoom = 1.0 AT 0.0;
-
--- ============================================================================
--- 1. ВИРТУАЛЬНЫЙ МИР И 4 КАРТОЧКИ-ЭКРАНА
--- ============================================================================
-INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
-  ('world_bg', 'rect', 1475, 480, 3600, 1600, '#070a12', 0,  100),
-  ('sc_1',     'rect', 350,  490, 460,  700,  '#0f172a', 32, 100),
-  ('sc_2',     'rect', 1100, 490, 460,  700,  '#17122b', 32, 100),
-  ('sc_3',     'rect', 1850, 490, 460,  700,  '#0c2229', 32, 100),
-  ('sc_4',     'rect', 2600, 490, 460,  700,  '#1c1526', 32, 100);
-
--- ============================================================================
--- 2. ЭКРАН 1 [0.0s — 3.4s]: МОРФИНГ ГЕОМЕТРИИ + КРИВЫЕ БЕЗЬЕ
--- ============================================================================
-INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
-  ('s1_morph', 'rect', 350, 440, 110, 110, '#38bdf8', 55, 100),
-  ('s1_pill',  'rect', 350, 620, 60,  12,  '#1e293b', 6,  100);
-
-INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
-  ('s1_num',   'text', '01 · МОРФИНГ & БЕЗЬЕ',         'JetBrains Mono', 350, 210, 15, '#38bdf8', 100),
-  ('s1_title', 'text', 'LSL',                          'Montserrat',     350, 455, 38, '#070a12', 100),
-  ('s1_code',  'text', 'width · height · radius',      'JetBrains Mono', 350, 545, 16, '#94a3b8', 0),
-  ('s1_ease',  'text', 'ease = [0.22, 1, 0.36, 1]',    'JetBrains Mono', 350, 580, 14, '#38bdf8', 0);
-
--- ============================================================================
--- 3. ЭКРАН 2 [3.4s — 7.0s]: SQL-ВЫБОРКИ (WHERE LIKE / AND / OR)
--- ============================================================================
-INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
-  ('eq_1', 'rect', 965,  560, 44, 50, '#334155', 10, 100),
-  ('eq_2', 'rect', 1032, 560, 44, 50, '#334155', 10, 100),
-  ('eq_3', 'rect', 1100, 560, 44, 50, '#334155', 10, 100),
-  ('eq_4', 'rect', 1168, 560, 44, 50, '#334155', 10, 100),
-  ('eq_5', 'rect', 1235, 560, 44, 50, '#334155', 10, 100);
-
-INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
-  ('s2_num',   'text', '02 · SQL-СЕЛЕКТОРЫ',           'JetBrains Mono', 1100, 210, 15, '#c084fc', 100),
-  ('s2_q1',    'text', "WHERE id LIKE 'eq_%'",         'JetBrains Mono', 1100, 285, 17, '#e9d5ff', 100),
-  ('s2_q2',    'text', "WHERE id = 'eq_2' OR id = 'eq_4'", 'JetBrains Mono', 1100, 320, 13, '#94a3b8', 0);
-
--- ============================================================================
--- 4. ЭКРАН 3 [7.0s — 10.6s]: ЦИКЛЫ, ПОВТОРЫ И YOYO-МАЯТНИК
--- ============================================================================
-INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
-  ('yo_ring', 'ellipse', 1850, 470, 150, 150, '#22c55e', 0,  25),
-  ('yo_box',  'rect',    1850, 470, 110, 110, '#22c55e', 24, 100);
-
-INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
-  ('s3_num',   'text', '03 · REPEAT & YOYO',           'JetBrains Mono', 1850, 210, 15, '#4ade80', 100),
-  ('s3_icon',  'text', '↻',                            'Montserrat',     1850, 484, 40, '#052e16', 100),
-  ('s3_code',  'text', 'repeat = 3, yoyo = true',      'JetBrains Mono', 1850, 625, 17, '#bbf7d0', 100);
-
--- ============================================================================
--- 5. ЭКРАН 4 [10.6s — 14.0s]: МОНТАЖНЫЙ КАТ + 2D-КАМЕРА + ЭКСПОРТ
--- ============================================================================
-INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
-  ('s4_btn',   'rect', 2600, 470, 140, 140, '#f43f5e', 70, 100);
-
-INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
-  ('s4_num',   'text', '04 · КАМЕРА, КАТ & ЭКСПОРТ',   'JetBrains Mono', 2600, 210, 15, '#fb7185', 100),
-  ('s4_cut',   'text', 'AT 10.6 (duration = 0)',       'JetBrains Mono', 2600, 310, 16, '#fda4af', 100),
-  ('s4_btn_t', 'text', 'JSON & MP4',                   'Playpen Sans',   2600, 480, 24, '#ffffff', 0),
-  ('s4_sub',   'text', '1 HTML-файл · Без зависимостей','Playpen Sans',  2600, 625, 17, '#cbd5e1', 0);
-
--- ============================================================================
--- 6. ФИКСИРОВАННЫЙ HUD (fixed = true — остаётся на экране при движении камеры)
+-- 0. БАЗОВЫЙ ХОЛСТ И ФИКСИРОВАННЫЙ HUD (живут весь ролик в Safe Zone)
 -- ============================================================================
 INSERT INTO layers (id, type, fixed, x, y, width, height, color, radius, opacity) VALUES
-  ('hud_top_bg', 'rect', true, 270, 72,  460, 44, '#0f172a', 12, 95),
-  ('hud_bar_bg', 'rect', true, 270, 912, 460, 8,  '#1e293b', 4,  100),
-  ('hud_bar',    'rect', true, 270, 912, 10,  8,  '#38bdf8', 4,  100);
+  ('world_bg', 'rect', false, 1650, 480, 3800, 1400, '#F7F5F0', 0,  100),
+  ('sc_1',     'rect', false, 350,  422, 460,  640,  '#FFFFFF', 24, 100),
+  ('sc_2',     'rect', false, 1150, 422, 460,  640,  '#FFFFFF', 24, 100),
+  ('sc_3',     'rect', false, 1950, 422, 460,  640,  '#FFFFFF', 24, 100),
+  ('sc_4',     'rect', false, 2750, 422, 460,  640,  '#FFFFFF', 24, 100);
+
+INSERT INTO layers (id, type, fixed, x, y, width, height, color, radius, opacity) VALUES
+  ('hud_pill',   'rect', true, 270, 96,  450, 38, '#EFECE4', 19, 100),
+  ('hud_track',  'rect', true, 270, 756, 450, 8,  '#E5E0D8', 4,  100),
+  ('hud_bar',    'rect', true, 270, 756, 12,  8,  '#2563EB', 4,  100);
 
 INSERT INTO layers (id, type, fixed, text, font, x, y, size, color, opacity) VALUES
-  ('hud_status', 'text', true, 'ФИЧА 1/4: МОРФИНГ ФОРМЫ', 'JetBrains Mono', 270, 78, 14, '#38bdf8', 100);
+  ('hud_status', 'text', true, '01 / 04 · МОРФИНГ & БЕЗЬЕ', 'JetBrains Mono', 270, 102, 16, '#2563EB', 100);
+
+-- Глобальный прогресс-бар в нижней границе Safe Zone (y = 756)
+AT 0.0 UPDATE layers SET width = 450 WHERE id = 'hud_bar' WITH (duration = 17.8, ease = 'linear');
 
 -- ============================================================================
--- ТАЙМЛАЙН ДЕМОНСТРАЦИИ (14.0 СЕКУНД БЕЗ ПАУЗ)
+-- 1. СЦЕНА 1 [0.0s — 4.4s]: МОРФИНГ ГЕОМЕТРИИ + КРИВЫЕ БЕЗЬЕ
 -- ============================================================================
+INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
+  ('s1_badge', 'rect', 350, 178, 260, 36, '#DBEAFE', 18, 100),
+  ('s1_morph', 'rect', 350, 325, 132, 132, '#2563EB', 66, 100),
+  ('s1_code_bg','rect', 350, 565, 410, 130, '#EFECE4', 16, 0);
 
--- Глобальный прогресс-бар внизу экрана (0.0s -> 14.0s)
-UPDATE layers SET width = 460 WHERE id = 'hud_bar' AT 0.0 WITH (duration = 14.0, ease = 'linear');
+INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
+  ('s1_tag',   'text', 'AT 0.3 UPDATE layers',        'JetBrains Mono', 350, 184, 16, '#1D4ED8', 100),
+  ('s1_shape_t','text','LSL',                         'Montserrat',     350, 339, 44, '#FFFFFF', 100),
+  ('s1_head',  'text', 'Морфинг формы',               'Montserrat',     350, 455, 34, '#1C1B19', 100),
+  ('s1_c1',    'text', 'width · height · radius',     'JetBrains Mono', 350, 542, 18, '#1C1B19', 0),
+  ('s1_c2',    'text', 'ease = [0.22, 1, 0.36, 1]',   'JetBrains Mono', 350, 578, 16, '#2563EB', 0),
+  ('s1_c3',    'text', 'плавная физика без ключевых кадров', 'Montserrat', 350, 612, 16, '#4A4741', 0);
 
--- ----------------------------------------------------------------------------
--- БЛОК 1 [0.0s — 3.4s]: МОРФИНГ РАЗМЕРОВ И КАСТОМНАЯ КРИВАЯ БЕЗЬЕ
--- ----------------------------------------------------------------------------
-UPDATE layers SET width = 330, height = 92, radius = 22 WHERE id = 's1_morph' AT 0.3 WITH (duration = 0.75, ease = [0.22, 1, 0.36, 1]);
-UPDATE layers SET opacity = 100                         WHERE id IN ('s1_code', 's1_ease') AT 0.65 WITH (duration = 0.45, ease = 'out');
-UPDATE layers SET width = 280, color = '#38bdf8'        WHERE id = 's1_pill'  AT 0.8 WITH (duration = 0.8, ease = 'out');
-UPDATE camera SET zoom = 1.07                           AT 0.5 WITH (duration = 1.5, ease = 'inOut');
+AT 0.35 UPDATE layers SET width = 360, height = 104, radius = 24 WHERE id = 's1_morph' WITH (duration = 0.8, ease = [0.22, 1, 0.36, 1]);
+AT 0.55 UPDATE layers SET text = 'LSL STUDIO', size = 32         WHERE id = 's1_shape_t';
+AT 0.80 UPDATE layers SET opacity = 100 WHERE id IN ('s1_code_bg', 's1_c1', 's1_c2', 's1_c3') WITH (duration = 0.45, ease = 'out');
+AT 0.50 UPDATE camera SET zoom = 1.05 WITH (duration = 1.6, ease = 'inOut');
 
--- Плавный переезд камеры ко 2-й фиче [2.2s -> 3.4s]
-UPDATE camera SET x = 1100, y = 480, zoom = 1.0 AT 2.2 WITH (duration = 1.2, ease = 'inOut');
+-- Переезд камеры ко 2-й сцене [3.2s -> 4.4s] и очистка DOM 1-й сцены
+AT 3.2 UPDATE camera SET x = 1150, y = 480, zoom = 1.0 WITH (duration = 1.2, ease = 'inOut');
+AT 4.5 DELETE FROM layers WHERE id LIKE 's1_%';
 
--- ----------------------------------------------------------------------------
--- БЛОК 2 [3.4s — 7.0s]: МАССОВЫЕ SQL-ВЫБОРКИ (LIKE + OR)
--- ----------------------------------------------------------------------------
-UPDATE layers SET color = '#c084fc' WHERE id = 'hud_bar' AT 3.1;
-UPDATE layers SET text = 'ФИЧА 2/4: SQL WHERE LIKE / OR', color = '#c084fc' WHERE id = 'hud_status' AT 3.1;
+-- ============================================================================
+-- 2. СЦЕНА 2 [3.6s — 9.0s]: SQL-СЕЛЕКТОРЫ (WHERE LIKE / OR)
+-- ============================================================================
+AT 3.6 INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
+  ('s2_badge',   'rect', 1150, 178, 280, 36, '#EDE9FE', 18, 100),
+  ('s2_chart_bg','rect', 1150, 415, 410, 230,'#F7F5F0', 16, 100),
+  ('eq_1',       'rect', 1002, 480, 52,  48, '#CBD5E1', 12, 100),
+  ('eq_2',       'rect', 1076, 480, 52,  48, '#CBD5E1', 12, 100),
+  ('eq_3',       'rect', 1150, 480, 52,  48, '#CBD5E1', 12, 100),
+  ('eq_4',       'rect', 1224, 480, 52,  48, '#CBD5E1', 12, 100),
+  ('eq_5',       'rect', 1298, 480, 52,  48, '#CBD5E1', 12, 100);
 
--- Шаг 2а: Поднимаем все 5 столбиков одной командой LIKE 'eq_%'
-UPDATE layers SET height = 220, y = 495, color = '#a855f7' WHERE id LIKE 'eq_%' AT 3.4 WITH (duration = 0.6, ease = [0.22, 1, 0.36, 1]);
-UPDATE layers SET opacity = 100                            WHERE id = 's2_q2'     AT 4.1 WITH (duration = 0.4, ease = 'out');
+AT 3.6 INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
+  ('s2_tag',  'text', "WHERE id LIKE 'eq_%'",            'JetBrains Mono', 1150, 184, 16, '#6D28D9', 100),
+  ('s2_head', 'text', 'SQL-выборки слоёв',               'Montserrat',     1150, 248, 32, '#1C1B19', 100),
+  ('s2_sub',  'text', 'Массовая анимация одним запросом','Montserrat',     1150, 282, 17, '#4A4741', 100),
+  ('s2_q2',   'text', "WHERE id = 'eq_2' OR id = 'eq_4'",'JetBrains Mono', 1150, 578, 16, '#6D28D9', 0),
+  ('s2_hint', 'text', 'поддержка LIKE, IN, AND, OR, >, <','Montserrat',    1150, 616, 16, '#4A4741', 0);
 
--- Шаг 2б: Выборочно акцентируем чётные столбики через OR
-UPDATE layers SET height = 300, y = 455, color = '#38bdf8' WHERE id = 'eq_2' OR id = 'eq_4' AT 4.3 WITH (duration = 0.6, ease = 'inOut');
-UPDATE layers SET radius = 22                              WHERE id LIKE 'eq_%'            AT 5.0 WITH (duration = 0.4, ease = 'out');
+AT 4.1 UPDATE layers SET color = '#7C3AED' WHERE id = 'hud_bar';
+AT 4.1 UPDATE layers SET text = '02 / 04 · SQL-СЕЛЕКТОРЫ', color = '#7C3AED' WHERE id = 'hud_status';
 
--- Плавный переезд камеры к 3-й фиче [5.8s -> 7.0s]
-UPDATE camera SET x = 1850, y = 480, zoom = 1.0 AT 5.8 WITH (duration = 1.2, ease = 'inOut');
+-- Шаг 2а: Поднимаем все 5 колонок по маске LIKE 'eq_%'
+AT 4.5 UPDATE layers SET height = 140, y = 434, color = '#8B5CF6' WHERE id LIKE 'eq_%' WITH (duration = 0.6, ease = [0.22, 1, 0.36, 1]);
+AT 5.2 UPDATE layers SET opacity = 100 WHERE id IN ('s2_q2', 's2_hint') WITH (duration = 0.4, ease = 'out');
 
--- ----------------------------------------------------------------------------
--- БЛОК 3 [7.0s — 10.6s]: REPEAT И YOYO-МАЯТНИК
--- ----------------------------------------------------------------------------
-UPDATE layers SET color = '#22c55e' WHERE id = 'hud_bar' AT 6.7;
-UPDATE layers SET text = 'ФИЧА 3/4: REPEAT & YOYO', color = '#4ade80' WHERE id = 'hud_status' AT 6.7;
+-- Шаг 2б: Выделяем чётные колонки через OR
+AT 5.6 UPDATE layers SET height = 190, y = 409, color = '#2563EB', radius = 26 WHERE id = 'eq_2' OR id = 'eq_4' WITH (duration = 0.6, ease = 'inOut');
 
--- Вращение квадрата + пульсация кольца 3 раза туда-обратно (7.0s + 3 * 0.8s = 9.4s)
-UPDATE layers SET rotation = 90, radius = 55, scale = 115 WHERE id = 'yo_box'  AT 7.0 WITH (duration = 0.8, ease = 'inOut', repeat = 3, yoyo = true);
-UPDATE layers SET rotation = 180                          WHERE id = 'yo_icon' AT 7.0 WITH (duration = 0.8, ease = 'inOut', repeat = 3, yoyo = true);
-UPDATE layers SET width = 260, height = 260, opacity = 45 WHERE id = 'yo_ring' AT 7.0 WITH (duration = 0.8, ease = 'inOut', repeat = 3, yoyo = true);
-UPDATE camera SET zoom = 1.08                             AT 7.2 WITH (duration = 1.2, ease = 'inOut', repeat = 1, yoyo = true);
+-- Переезд камеры к 3-й сцене [7.8s -> 9.0s] и очистка DOM 2-й сцены
+AT 7.8 UPDATE camera SET x = 1950, y = 480, zoom = 1.0 WITH (duration = 1.2, ease = 'inOut');
+AT 9.1 DELETE FROM layers WHERE id LIKE 's2_%' OR id LIKE 'eq_%';
 
--- ----------------------------------------------------------------------------
--- БЛОК 4 [10.6s — 14.0s]: МОНТАЖНЫЙ КАТ (duration = 0) И ФИНАЛЬНЫЙ ЭКСПОРТ
--- ----------------------------------------------------------------------------
-UPDATE layers SET color = '#f43f5e' WHERE id = 'hud_bar' AT 10.6;
-UPDATE layers SET text = 'ФИЧА 4/4: МОНТАЖНЫЙ КАТ & ЭКСПОРТ', color = '#fb7185' WHERE id = 'hud_status' AT 10.6;
+-- ============================================================================
+-- 3. СЦЕНА 3 [8.2s — 13.6s]: ЦИКЛЫ, ПОВТОРЫ И YOYO-МАЯТНИК
+-- ============================================================================
+AT 8.2 INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
+  ('s3_badge',   'rect',    1950, 178, 280, 36,  '#D1FAE5', 18, 100),
+  ('yo_ring',    'ellipse', 1950, 385, 168, 168, '#10B981', 0,  22),
+  ('yo_box',     'rect',    1950, 385, 120, 120, '#059669', 26, 100),
+  ('s3_code_bg', 'rect',    1950, 585, 410, 104, '#EFECE4', 16, 100);
 
--- Мгновенный перескок камеры на 4-й экран без пролёта
-UPDATE camera SET x = 2600, y = 480, zoom = 0.92 AT 10.6;
+AT 8.2 INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
+  ('s3_tag',  'text', 'repeat = 3, yoyo = true',          'JetBrains Mono', 1950, 184, 16, '#047857', 100),
+  ('s3_head', 'text', 'Циклы и маятник',                  'Montserrat',     1950, 248, 32, '#1C1B19', 100),
+  ('yo_icon', 'text', '↻',                                'Montserrat',     1950, 401, 46, '#FFFFFF', 100),
+  ('s3_c1',   'text', 'WITH (duration = 0.8, repeat = 3, yoyo = true)', 'JetBrains Mono', 1950, 572, 15, '#1C1B19', 100),
+  ('s3_c2',   'text', 'автоматический возврат в исходное состояние',    'Montserrat',     1950, 608, 16, '#4A4741', 100);
 
--- Наезд камеры + превращение круга в финальную кнопку экспорта
-UPDATE camera SET x = 2600, y = 490, zoom = 1.12          AT 10.7 WITH (duration = 1.6, ease = 'inOut');
-UPDATE layers SET width = 340, height = 86, radius = 43   WHERE id = 's4_btn' AT 10.7 WITH (duration = 0.7, ease = [0.22, 1, 0.36, 1]);
-UPDATE layers SET opacity = 100                           WHERE id IN ('s4_btn_t', 's4_sub') AT 11.1 WITH (duration = 0.5, ease = 'out');
+AT 8.7 UPDATE layers SET color = '#059669' WHERE id = 'hud_bar';
+AT 8.7 UPDATE layers SET text = '03 / 04 · REPEAT & YOYO', color = '#059669' WHERE id = 'hud_status';
 
--- Финальная стабилизация общего плана [12.5s -> 13.8s]
-UPDATE camera SET x = 2600, y = 480, zoom = 1.0 AT 12.5 WITH (duration = 1.3, ease = 'inOut');
+-- 3 цикла туда-обратно (9.0s + 3 * 0.8s = 11.4s)
+AT 9.0 UPDATE layers SET rotation = 90, radius = 60, scale = 114 WHERE id = 'yo_box'  WITH (duration = 0.8, ease = 'inOut', repeat = 3, yoyo = true);
+AT 9.0 UPDATE layers SET rotation = 180                          WHERE id = 'yo_icon' WITH (duration = 0.8, ease = 'inOut', repeat = 3, yoyo = true);
+AT 9.0 UPDATE layers SET width = 260, height = 260, opacity = 40 WHERE id = 'yo_ring' WITH (duration = 0.8, ease = 'inOut', repeat = 3, yoyo = true);
+AT 9.2 UPDATE camera SET zoom = 1.06                             WITH (duration = 1.2, ease = 'inOut', repeat = 1, yoyo = true);
+
+-- Очистка DOM 3-й сцены сразу после монтажного ката
+AT 13.7 DELETE FROM layers WHERE id LIKE 's3_%' OR id LIKE 'yo_%';
+
+-- ============================================================================
+-- 4. СЦЕНА 4 [13.5s — 18.0s]: МОНТАЖНЫЙ КАТ + 2D-КАМЕРА + ЭКСПОРТ
+-- ============================================================================
+AT 13.5 INSERT INTO layers (id, type, x, y, width, height, color, radius, opacity) VALUES
+  ('s4_badge', 'rect', 2750, 178, 280, 36,  '#FEE2E2', 18, 100),
+  ('s4_btn',   'rect', 2750, 420, 148, 148, '#D95338', 74, 100),
+  ('s4_info',  'rect', 2750, 585, 410, 104, '#EFECE4', 16, 0);
+
+AT 13.5 INSERT INTO layers (id, type, text, font, x, y, size, color, opacity) VALUES
+  ('s4_tag',   'text', 'AT 13.6 UPDATE camera ...',        'JetBrains Mono', 2750, 184, 16, '#B91C1C', 100),
+  ('s4_head',  'text', 'Кат камеры и экспорт',             'Montserrat',     2750, 248, 32, '#1C1B19', 100),
+  ('s4_sub',   'text', 'Мгновенная смена плана без duration','Montserrat',    2750, 284, 17, '#4A4741', 100),
+  ('s4_btn_t', 'text', 'JSON & WebM',                      'Montserrat',     2750, 430, 26, '#FFFFFF', 0),
+  ('s4_i1',    'text', '• Lottie JSON с 2D-камерой (CAMERA_RIG)', 'Montserrat', 2750, 570, 16, '#1C1B19', 0),
+  ('s4_i2',    'text', '• Покадровый рендер в WebM 60 fps',      'Montserrat', 2750, 604, 16, '#4A4741', 0);
+
+-- Мгновенный перескок камеры на 4-й экран (duration = 0)
+AT 13.6 UPDATE camera SET x = 2750, y = 480, zoom = 0.94;
+AT 13.6 UPDATE layers SET color = '#D95338' WHERE id = 'hud_bar';
+AT 13.6 UPDATE layers SET text = '04 / 04 · КАТ & ЭКСПОРТ', color = '#D95338' WHERE id = 'hud_status';
+
+-- Наезд камеры + морфинг круга в кнопку + появление карточки итогов
+AT 13.75 UPDATE camera SET x = 2750, y = 480, zoom = 1.08 WITH (duration = 1.5, ease = 'inOut');
+
+AT 13.75 UPDATE layers SET width = 360, height = 88, radius = 44 WHERE id = 's4_btn' WITH (duration = 0.7, ease = [0.22, 1, 0.36, 1]);
+AT 14.15 UPDATE layers SET opacity = 100 WHERE id IN ('s4_btn_t', 's4_info', 's4_i1', 's4_i2') WITH (duration = 0.45, ease = 'out');
+-- Финальная стабилизация плана [15.6s -> 17.0s]
+AT 15.6 UPDATE camera SET x = 2750, y = 480, zoom = 1.0 WITH (duration = 1.4, ease = 'inOut');
 
 `;
 
@@ -324,11 +322,11 @@ function findTopLevelKeywords(text, words) {
   return found;
 }
 
-/** Разбирает хвост UPDATE: SET-часть плюс необязательные WHERE / AT / WITH (...). */
+/** Разбирает хвост UPDATE: SET-часть плюс необязательные WHERE / WITH (...). */
 function splitUpdateTail(rest) {
-  const marks = findTopLevelKeywords(rest, ['WHERE', 'AT', 'WITH'])
+  const marks = findTopLevelKeywords(rest, ['WHERE', 'WITH'])
     .sort((a, b) => a.index - b.index);
-  const tail = { set: '', where: null, at: 0, with: {} };
+  const tail = { set: '', where: null, with: {} };
   if (!marks.length) { tail.set = rest.trim(); return tail; }
 
   tail.set = rest.slice(0, marks[0].index).trim();
@@ -337,8 +335,7 @@ function splitUpdateTail(rest) {
     const end = i + 1 < marks.length ? marks[i + 1].index : rest.length;
     const segment = rest.slice(index + word.length, end).trim();
 
-    if (word === 'AT') tail.at = parseFloat(segment) || 0;
-    else if (word === 'WITH') tail.with = parseAssignments(stripParens(segment));
+    if (word === 'WITH') tail.with = parseAssignments(stripParens(segment));
     else tail.where = segment;
   }
   return tail;
@@ -361,7 +358,7 @@ function makeUpdate(setPart, atTime, withObj) {
  * 3. ПАРСЕР LSL
  * ========================================================================== */
 
-function parseInsertStatement(stmt, layers) {
+function parseInsertStatement(stmt, layers, atTime = 0) {
   const match = stmt.match(/^INSERT\s+INTO\s+layers\s*\(([^)]+)\)\s*VALUES\s*(.+)$/is);
   if (!match) return false;
 
@@ -373,10 +370,23 @@ function parseInsertStatement(stmt, layers) {
         `Количество значений (${values.length}) не совпадает с колонками (${columns.length})`
       );
     }
-    const layer = { ...DEFAULT_LAYER };
+    const layer = { ...DEFAULT_LAYER, ip: atTime };
     columns.forEach((col, i) => { layer[col] = values[i]; });
     if (!layer.id) throw new Error('У каждого слоя в INSERT должен быть указан id');
     layers.set(layer.id, layer);
+  }
+  return true;
+}
+
+function parseDeleteStatement(stmt, layers, atTime = 0) {
+  const match = stmt.match(/^DELETE\s+FROM\s+layers(?:\s+WHERE\s+(.+))?$/is);
+  if (!match) return false;
+
+  const predicate = match[1] ? compileWherePredicate(match[1].trim()) : () => true;
+  for (const layer of layers.values()) {
+    if (predicate(layer) && layer.op === null) {
+      layer.op = atTime;
+    }
   }
   return true;
 }
@@ -388,35 +398,32 @@ function parseCompositionUpdate(stmt, comp) {
   return true;
 }
 
-function parseCameraUpdate(stmt, cameraUpdates) {
-  const match = stmt.match(/^UPDATE\s+camera\s+SET\s+(.+)$/is);
-  if (!match) return false;
-  const tail = splitUpdateTail(match[1]);
-  cameraUpdates.push(makeUpdate(tail.set, tail.at, tail.with));
-  return true;
-}
-
-function parseLayerUpdate(stmt, updates) {
+function parseLayerUpdate(stmt, updates, atTime) {
   const match = stmt.match(/^UPDATE\s+layers\s+SET\s+(.+)$/is);
   if (!match) return false;
 
   const tail = splitUpdateTail(match[1]);
-  const update = makeUpdate(tail.set, tail.at, tail.with);
+  const update = makeUpdate(tail.set, atTime, tail.with);
   update.matchFn = tail.where ? compileWherePredicate(tail.where) : () => true;
   updates.push(update);
   return true;
 }
 
+function parseCameraUpdate(stmt, cameraUpdates, atTime) {
+  const match = stmt.match(/^UPDATE\s+camera\s+SET\s+(.+)$/is);
+  if (!match) return false;
+  const tail = splitUpdateTail(match[1]);
+  cameraUpdates.push(makeUpdate(tail.set, atTime, tail.with));
+  return true;
+}
+
 /** Обработчики инструкций: каждая возвращает true, если распознала выражение. */
 const STATEMENT_PARSERS = [
-  // INSERT INTO layers (...) VALUES (...), (...);
-  (stmt, ctx) => parseInsertStatement(stmt, ctx.layers),
-  // UPDATE composition SET ...;
+  (stmt, ctx, atTime) => parseInsertStatement(stmt, ctx.layers, atTime),
+  (stmt, ctx, atTime) => parseDeleteStatement(stmt, ctx.layers, atTime),
   (stmt, ctx) => parseCompositionUpdate(stmt, ctx.comp),
-  // UPDATE camera SET ... [AT ...] [WITH (...)];
-  (stmt, ctx) => parseCameraUpdate(stmt, ctx.cameraUpdates),
-  // UPDATE layers SET ... [WHERE ...] [AT ...] [WITH (...)];
-  (stmt, ctx) => parseLayerUpdate(stmt, ctx.updates),
+  (stmt, ctx, atTime) => parseCameraUpdate(stmt, ctx.cameraUpdates, atTime),
+  (stmt, ctx, atTime) => parseLayerUpdate(stmt, ctx.updates, atTime),
 ];
 
 /** Разбирает текст DSL в { comp, layers, updates, cameraUpdates }. */
@@ -432,9 +439,17 @@ function parseDSL(text) {
   };
 
   for (const raw of statements) {
-    const stmt = raw.trim();
+    let stmt = raw.trim();
     if (!stmt) continue;
-    const matched = STATEMENT_PARSERS.some((parse) => parse(stmt, ctx));
+
+    let atTime = 0;
+    const atMatch = stmt.match(/^AT\s+([+-]?\d+(?:\.\d+)?)\s+(.+)$/is);
+    if (atMatch) {
+      atTime = parseFloat(atMatch[1]) || 0;
+      stmt = atMatch[2].trim();
+    }
+
+    const matched = STATEMENT_PARSERS.some((parse) => parse(stmt, ctx, atTime));
     if (!matched) throw new Error('Неизвестная инструкция LSL: ' + stmt.slice(0, 60));
   }
 
@@ -671,11 +686,20 @@ function collectLayerEvents(layer, updates) {
   return channels;
 }
 
-/** Базовый слой Lottie: непропорциональные слои привязываются к камере. */
-function createBaseLayer(name, ks, ind, totalFrames, camInd, fixed) {
-  const layer = { ddd: 0, ind, nm: name, sr: 1, ks, ao: 0, ip: 0, op: totalFrames, st: 0, bm: 0 };
-  if (!fixed) layer.parent = camInd;
-  return layer;
+/** Базовый слой Lottie: задаёт интервал жизни [ip, op] и привязку к камере. */
+function createBaseLayer(layer, ks, ind, totalFrames, fps, camInd) {
+  const ip = Math.max(0, Math.round((layer.ip || 0) * fps));
+  const rawOp = layer.op !== null && layer.op !== undefined
+    ? Math.round(layer.op * fps)
+    : totalFrames;
+  const op = Math.max(ip + 1, Math.min(totalFrames, rawOp));
+
+  const res = {
+    ddd: 0, ind, nm: layer.id, sr: 1, ks, ao: 0,
+    ip, op, st: 0, bm: 0,
+  };
+  if (!layer.fixed) res.parent = camInd;
+  return res;
 }
 
 function layerTransform(layer, channels, fps) {
@@ -704,7 +728,7 @@ function createShapeLayer(layer, channels, ind, totalFrames, fps, camInd) {
       };
 
   return {
-    ...createBaseLayer(layer.id, layerTransform(layer, channels, fps), ind, totalFrames, camInd, layer.fixed),
+    ...createBaseLayer(layer, layerTransform(layer, channels, fps), ind, totalFrames, fps, camInd),
     ty: 4,
     shapes: [{
       ty: 'gr',
@@ -759,7 +783,7 @@ function createTextLayer(layer, channels, ind, totalFrames, fps, camInd) {
   }
 
   return {
-    ...createBaseLayer(layer.id, layerTransform(layer, channels, fps), ind, totalFrames, camInd, layer.fixed),
+    ...createBaseLayer(layer, layerTransform(layer, channels, fps), ind, totalFrames, fps, camInd),
     ty: 5,
     t: {
       d: { k: textKeys },
